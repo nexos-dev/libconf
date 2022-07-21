@@ -22,6 +22,7 @@ enable_language(C)
 # Options
 option(LIBCONF_ENABLE_TESTS "Specifies if the test suite should be built" OFF)
 option(BUILD_SHARED_LIBS "Specifies if shared libraries should be built" OFF)
+OPTION(LIBCONF_LINK_DEPS "Specifies if dependencies should automatically be linked into libconf")
 
 # Enable testing
 if(${LIBCONF_ENABLE_TESTS} AND NOT ${CMAKE_CROSSCOMPILING})
@@ -36,8 +37,10 @@ else()
     include_directories(cmake)
 endif()
 
-find_package(LibNex REQUIRED)
-find_package(LibChardet REQUIRED)
+if(LIBCONF_LINK_DEPS)
+    find_package(LibNex REQUIRED)
+    find_package(LibChardet REQUIRED)
+endif()
 
 include(GNUInstallDirs)
 include(NexTest)
@@ -63,8 +66,12 @@ target_include_directories(conf PUBLIC include)
 # Set SOName
 set_target_properties(conf PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
 
-# Link with libnex
-target_link_libraries(conf PUBLIC LibNex::nex LibChardet::chardet)
+if (LIBCONF_LINK_DEPS)
+    # Link with libnex and libchardet
+    target_link_libraries(conf PUBLIC LibNex::nex LibChardet::chardet)
+else()
+    target_link_libraries(conf PUBLIC nex chardet)
+endif()
 
 # Install it
 install(TARGETS conf)

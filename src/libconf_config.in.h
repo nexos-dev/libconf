@@ -16,8 +16,8 @@
     limitations under the License.
 */
 
-#ifndef _CONFIG_H
-#define _CONFIG_H
+#ifndef _LIBCONF_CONFIG_H
+#define _LIBCONF_CONFIG_H
 
 #cmakedefine HAVE_VISIBILITY
 #cmakedefine HAVE_DECLSPEC_EXPORT

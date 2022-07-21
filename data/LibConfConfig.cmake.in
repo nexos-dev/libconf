@@ -28,7 +28,7 @@ set_and_check(LIBCONF_INCLUDE_DIRS "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@")
 set(LIBCONF_LIBRARY "@LIBCONF_LIBRARY_FILE@")
 
 # Create the imported target
-add_library(LibConf:conf @LIBCONF_LIBTYPE@ IMPORTED)
+add_library(LibConf::conf @LIBCONF_LIBTYPE@ IMPORTED)
 set_target_properties(LibConf::conf PROPERTIES IMPORTED_LOCATION "@LIBCONF_LIBRARY_FILE@")
 target_link_libraries(LibConf::conf INTERFACE LibChardet::chardet LibNex::nex)
 
