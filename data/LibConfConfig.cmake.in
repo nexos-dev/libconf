@@ -29,15 +29,12 @@ set(LIBCONF_LIBRARY "@LIBCONF_LIBRARY_FILE@")
 
 # Create the imported target
 add_library(LibConf:conf @LIBCONF_LIBTYPE@ IMPORTED)
-set_target_properties(LibConf::nex PROPERTIES IMPORTED_LOCATION "@LIBCONF_LIBRARY_FILE@")
-if(NOT "@LIBCONF_LIBRARIES@" STREQUAL "")
-    target_link_libraries(LibConf::nex INTERFACE "@LIBCONF_LIBRARIES@")
-endif()
-target_include_directories(LibConf::nex INTERFACE "@LIBCONF_INSTALL_INCLUDE_DIRS@")
+set_target_properties(LibConf::conf PROPERTIES IMPORTED_LOCATION "@LIBCONF_LIBRARY_FILE@")
+target_link_libraries(LibConf::conf INTERFACE LibChardet::chardet LibNex::nex)
 
 # Set SOName
 if(@LIBCONF_HAVE_SONAME@)
-    set_target_properties(LibConf::nex PROPERTIES IMPORTED_SONAME "@LIBCONF_SONAME@")
+    set_target_properties(LibConf::conf PROPERTIES IMPORTED_SONAME "@LIBCONF_SONAME@")
 endif()
 
 check_required_components(LibConf)
