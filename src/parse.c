@@ -45,6 +45,31 @@ void _confSetFileName (const char* file);
 
 static inline _confToken_t* _parseInclude (parseState_t*, _confToken_t*);
 
+// Destroys a token
+static void _parseDestroyBlock (const void* data)
+{
+    ConfBlock_t* block = (ConfBlock_t*) data;
+    StrRefDestroy (block->blockType);
+    StrRefDestroy (block->blockName);
+    ListDestroy (block->props);
+    free (block);
+}
+
+// Destroys a property
+static void _parseDestroyProp (const void* data)
+{
+    ConfProperty_t* prop = (ConfProperty_t*) data;
+    StrRefDestroy (prop->name);
+    for (int i = 0; i < prop->nextVal; ++i)
+    {
+        if (prop->vals[i].type == DATATYPE_STRING)
+            StrRefDestroy (prop->vals[i].str);
+        else if (prop->vals[i].type == DATATYPE_IDENTIFIER)
+            StrRefDestroy (prop->vals[i].id);
+    }
+    free (prop);
+}
+
 // Reports a diagnostic message
 static void _parseError (parseState_t* parser,
                          _confToken_t* tok,
@@ -93,7 +118,7 @@ static void _parseError (parseState_t* parser,
         case PARSE_ERROR_TOO_MANY_PROPS:
             buf += snprintf (buf,
                              2048 - (buf - obuf),
-                             "too many properties on property '%s'",
+                             "too many values on property '%s'",
                              (char*) extra);
             break;
         case PARSE_ERROR_INTERNAL:
@@ -113,7 +138,11 @@ _confToken_t* _parseToken (parseState_t* state, _confToken_t* lastTok)
 {
     // Free token
     if (state->lastToken)
+    {
+        if (state->lastToken->semVal)
+            StrRefDestroy (state->lastToken->semVal);
         free (state->lastToken);
+    }
     state->lastToken = lastTok;
     _confToken_t* tok = _confLex (state->lex);
     if (tok->type == LEX_TOKEN_ERROR)
@@ -148,12 +177,9 @@ static _confToken_t* _parseBlock (parseState_t* state, _confToken_t* tok)
     // Initialize it
     block->lineNo = tok->line;
     block->props = ListCreate ("ConfProperty", false, 0);
+    ListSetDestroy (block->props, _parseDestroyProp);
     // Set type of block
-    if (c32lcpy (block->blockType, tok->semVal, 256) >= 256)
-    {
-        _parseError (state, tok, PARSE_ERROR_OVERFLOW, NULL);
-        return NULL;
-    }
+    block->blockType = StrRefNew (tok->semVal);
     // Check if block has a name
     tok = _parseToken (state, tok);
     if (!tok)
@@ -161,18 +187,14 @@ static _confToken_t* _parseBlock (parseState_t* state, _confToken_t* tok)
     if (tok->type == LEX_TOKEN_ID)
     {
         // Set name of block
-        if (c32lcpy (block->blockName, tok->semVal, BLOCK_BUFSZ) >= BLOCK_BUFSZ)
-        {
-            _parseError (state, tok, PARSE_ERROR_OVERFLOW, NULL);
-            return NULL;
-        }
+        block->blockName = StrRefNew (tok->semVal);
         // Get a opening brace
         tok = _parseExpect (state, tok, LEX_TOKEN_OBRACE);
         if (!tok)
             return NULL;
     }
     else if (tok->type == LEX_TOKEN_OBRACE)
-        block->blockName[0] = 0;
+        block->blockName = NULL;
     else
     {
         _parseError (state, tok, PARSE_ERROR_UNEXPECTED_TOKEN, NULL);
@@ -198,11 +220,7 @@ static _confToken_t* _parseBlock (parseState_t* state, _confToken_t* tok)
                 return NULL;
             ListAddBack (block->props, prop, 0);
             prop->lineNo = tok->line;
-            if (c32lcpy (prop->name, tok->semVal, BLOCK_BUFSZ) >= BLOCK_BUFSZ)
-            {
-                _parseError (state, tok, PARSE_ERROR_OVERFLOW, NULL);
-                return NULL;
-            }
+            prop->name = StrRefNew (tok->semVal);
             prop->nextVal = 0;
             // Expect a colon
             tok = _parseExpect (state, tok, LEX_TOKEN_COLON);
@@ -222,12 +240,7 @@ static _confToken_t* _parseBlock (parseState_t* state, _confToken_t* tok)
                     prop->vals[valLoc].lineNo = tok->line;
                     prop->vals[valLoc].type = DATATYPE_STRING;
                     // Copy string value
-                    if (c32lcpy (prop->vals[valLoc].str, tok->semVal, BLOCK_BUFSZ) >=
-                        BLOCK_BUFSZ)
-                    {
-                        _parseError (state, tok, PARSE_ERROR_OVERFLOW, NULL);
-                        return NULL;
-                    }
+                    prop->vals[valLoc].str = StrRefNew (tok->semVal);
                     ++prop->nextVal;
                     if (prop->nextVal >= MAX_PROPVAR)
                     {
@@ -246,12 +259,7 @@ static _confToken_t* _parseBlock (parseState_t* state, _confToken_t* tok)
                     prop->vals[valLoc].lineNo = tok->line;
                     prop->vals[valLoc].type = DATATYPE_IDENTIFIER;
                     // Copy string value
-                    if (c32lcpy (prop->vals[valLoc].id, tok->semVal, BLOCK_BUFSZ) >=
-                        BLOCK_BUFSZ)
-                    {
-                        _parseError (state, tok, PARSE_ERROR_OVERFLOW, NULL);
-                        return NULL;
-                    }
+                    prop->vals[valLoc].id = StrRefNew (tok->semVal);
                     ++prop->nextVal;
                     if (prop->nextVal >= MAX_PROPVAR)
                     {
@@ -363,10 +371,10 @@ static inline _confToken_t* _parseInclude (parseState_t* state, _confToken_t* to
     if (!pathTok)
         return NULL;
     // Convert string value to multibyte
-    size_t len = c32len (pathTok->semVal);
+    size_t len = c32len (StrRefGet (pathTok->semVal));
     char* mbPath = malloc_s ((len * MB_CUR_MAX) + 1);
     mbstate_t mbState = {0};
-    if (c32stombs (mbPath, pathTok->semVal, len, &mbState) < 0)
+    if (c32stombs (mbPath, StrRefGet (pathTok->semVal), len, &mbState) < 0)
     {
         _parseError (state, pathTok, PARSE_ERROR_INTERNAL, strerror (errno));
         return NULL;
@@ -385,6 +393,7 @@ static inline _confToken_t* _parseInclude (parseState_t* state, _confToken_t* to
     if (!_parseInternal (&newState))
         return NULL;
     _confSetFileName (oldFile);
+    free (mbPath);
     return pathTok;
 }
 
@@ -398,7 +407,8 @@ ListHead_t* _confParse (const char* file)
     ConfBlock_t* block = NULL;
     parseState_t state = {0};
     state.lex = lexState;
-    state.head = ListCreate ("ConfBlock", false, 9);
+    state.head = ListCreate ("ConfBlock", false, 0);
+    ListSetDestroy (state.head, _parseDestroyBlock);
     if (!_parseInternal (&state))
     {
         ConfFreeParseTree (state.head);

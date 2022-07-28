@@ -25,21 +25,19 @@
 #include <libintl.h>
 #include <libnex/char32.h>
 #include <libnex/list.h>
+#include <libnex/stringref.h>
 #include <libnex/textstream.h>
 #include <stdbool.h>
 #include <stdint.h>
 
-#define TOK_SEM_SIZE 2048
-
 /// Specifies a token that was parsed by the lexer
 typedef struct _confToken
 {
-    int type;                         ///< The type of token that was parsed
-    int line;                         ///< The line that this token is on
-    void* data;                       ///< Pointer to some data for the token
-    char32_t semVal[TOK_SEM_SIZE];    ///< Semantic value of token
-    int64_t num;                      ///< Numeric value of token
-    uint16_t base;                    ///< Base of token
+    int type;                 ///< The type of token that was parsed
+    int line;                 ///< The line that this token is on
+    StringRef32_t* semVal;    ///< Semantic value of token
+    int64_t num;              ///< Numeric value of token
+    uint16_t base;            ///< Base of token
 } _confToken_t;
 
 /// The state of the lexer

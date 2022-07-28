@@ -24,7 +24,9 @@
 #include <string.h>
 #define NEXTEST_NAME "lex"
 #include <libnex/progname.h>
+#include <libnex/stringref.h>
 #include <nextest.h>
+#include <stdlib.h>
 
 void _confSetFileName (const char* file);
 
@@ -39,44 +41,57 @@ int main()
     tok = _confLex (state);
     TEST_ANON (tok->type, 4);
     TEST_ANON (tok->line, 10);
+    free (tok);
     tok = _confLex (state);
     TEST_ANON (tok->type, 5);
+    free (tok);
     tok = _confLex (state);
     TEST_ANON (tok->type, 7);
+    free (tok);
     tok = _confLex (state);
     TEST_ANON (tok->type, 6);
+    free (tok);
     tok = _confLex (state);
     TEST_ANON (tok->type, 14);
+    free (tok);
     tok = _confLex (state);
     TEST_ANON (tok->type, 9);
     TEST_ANON (tok->num, 25);
     TEST_ANON (tok->line, 12);
+    free (tok);
     tok = _confLex (state);
     TEST_ANON (tok->type, 9);
     TEST_ANON (tok->num, 0xAD8B2);
     TEST_ANON (tok->line, 14);
+    free (tok);
     tok = _confLex (state);
     TEST_ANON (tok->type, 9);
     TEST_ANON (tok->num, -34);
     TEST_ANON (tok->line, 16);
+    free (tok);
     tok = _confLex (state);
     TEST_ANON (tok->type, 8);
     TEST_ANON (tok->line, 18);
-    TEST_BOOL_ANON (!c32cmp (tok->semVal, U"test2-test3_"));
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (tok->semVal), U"test2-test3_"));
+    StrRefDestroy (tok->semVal);
+    free (tok);
     tok = _confLex (state);
-    TEST_ANON (tok->type, 8);
+    TEST_ANON (tok->type, 11);
     TEST_ANON (tok->line, 20);
-    TEST_BOOL_ANON (!c32cmp (tok->semVal, U"23test"));
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (tok->semVal), U"test t \\ '"));
+    StrRefDestroy (tok->semVal);
+    free (tok);
     tok = _confLex (state);
     TEST_ANON (tok->type, 11);
     TEST_ANON (tok->line, 22);
-    TEST_BOOL_ANON (!c32cmp (tok->semVal, U"test t \\ '"));
-    tok = _confLex (state);
-    TEST_ANON (tok->type, 11);
-    TEST_ANON (tok->line, 24);
-    TEST_BOOL_ANON (!c32cmp (tok->semVal, U"test string en_US.UTF-8 $ \" \ntest"));
+    TEST_BOOL_ANON (
+        !c32cmp (StrRefGet (tok->semVal), U"test string en_US.UTF-8 $ \" \ntest"));
+    StrRefDestroy (tok->semVal);
+    free (tok);
     tok = _confLex (state);
     TEST_ANON (tok->type, 12);
+    StrRefDestroy (tok->semVal);
+    free (tok);
     _confLexDestroy (state);
     return 0;
 }

@@ -33,8 +33,6 @@
 
 #define LEX_FRAME_SZ 2048    // Size of lexing staging buffer
 
-#define VARNAME_SIZE 512
-
 // Valid error states for lexer
 #define LEX_ERROR_NONE             0
 #define LEX_ERROR_UNEXPECTED_TOKEN 1
@@ -416,7 +414,7 @@ _confToken_t* _lexInternal (lexState_t* state)
     int numBufPos = 0;
     int res = 0;
     // Allocate token
-    _confToken_t* tok = (_confToken_t*) malloc_s (sizeof (_confToken_t));
+    _confToken_t* tok = (_confToken_t*) calloc_s (sizeof (_confToken_t));
     if (!tok)
         goto _internalError;
     state->tok = tok;
@@ -601,26 +599,31 @@ _confToken_t* _lexInternal (lexState_t* state)
                 // Prepare it
                 tok->type = LEX_TOKEN_ID;
                 tok->line = state->line;
+#define VARMAX 32
+                char32_t* semVal = malloc_s (VARMAX * sizeof (char32_t));
+                if (!semVal)
+                    goto _internalError;
                 // Add the rest of it
                 while (_lexIsIdChar (curChar))
                 {
-                    if (bufPos >= TOK_SEM_SIZE)
+                    semVal[bufPos] = curChar;
+                    ++bufPos;
+                    if (bufPos >= VARMAX)
                     {
                         _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
                         goto _internalError;
                     }
-                    tok->semVal[bufPos] = curChar;
-                    ++bufPos;
                     curChar = _lexReadChar (state);
                     CHECK_EOF_BREAK (curChar);
                 }
                 // Null terminate it
-                tok->semVal[bufPos] = 0;
+                semVal[bufPos] = 0;
                 // Return character to buffer
                 _lexReturnChar (state, curChar);
                 // Check if this is a keyword
-                if (!c32cmp (tok->semVal, U"include"))
+                if (!c32cmp (semVal, U"include"))
                     tok->type = LEX_TOKEN_INCLUDE;
+                tok->semVal = StrRefCreate (semVal);
                 // Accept
                 state->isAccepted = true;
                 break;
@@ -658,45 +661,42 @@ _confToken_t* _lexInternal (lexState_t* state)
                 // Prepare the token
                 tok->type = LEX_TOKEN_NUM;
                 tok->line = state->line;
+                semVal = malloc_s (VARMAX * sizeof (char32_t));
+                if (!semVal)
+                    goto _internalError;
                 // Add rest of value
                 while (_lexIsNumeric (curChar, tok->base) ||
                        (bufPos == 0 && curChar == '-'))
                 {
-                    if (bufPos >= TOK_SEM_SIZE)
+                    if (bufPos >= VARMAX)
                     {
                         _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
                         goto _internalError;
                     }
-                    tok->semVal[bufPos] = curChar;
+                    semVal[bufPos] = curChar;
                     ++bufPos;
                     curChar = _lexReadChar (state);
                     CHECK_EOF (curChar);
                 }
                 // Ensure the user didn't just pass '-'
-                if (bufPos <= 1 && tok->semVal[0] == '-')
+                if (bufPos <= 1 && semVal[0] == '-')
                 {
                     _lexError (state, LEX_ERROR_INVALID_NUMBER, NULL);
                     goto _internalError;
                 }
-                // Check if the first invalid character really is a valid ID
-                // character
-                if (_lexIsIdChar (curChar))
-                {
-                    // Re-lex as an ID
-                    goto lexId;
-                }
                 // Null terminate
-                tok->semVal[bufPos] = 0;
+                semVal[bufPos] = 0;
                 // Return first non-numeric character
                 _lexReturnChar (state, curChar);
                 // Convert the string to numeric
-                tok->num = strtoll (UnicodeToHost (tok->semVal), NULL, tok->base);
+                tok->num = strtoll (UnicodeToHost (semVal), NULL, tok->base);
                 if (tok->num == LONG_MIN || tok->num == LONG_MAX)
                 {
                     _lexError (state, LEX_ERROR_INTERNAL, strerror (errno));
                     goto _internalError;
                 }
                 // Accept it
+                free (semVal);
                 state->isAccepted = true;
                 break;
             case '\'':
@@ -704,6 +704,8 @@ _confToken_t* _lexInternal (lexState_t* state)
                 tok->type = LEX_TOKEN_STR;
                 tok->line = state->line;
                 curChar = _lexReadChar (state);
+#define STRINGMAX 128
+                semVal = malloc_s (STRINGMAX * sizeof (char32_t));
                 while (curChar != '\'')
                 {
                     // Handle escape sequences
@@ -756,12 +758,13 @@ _confToken_t* _lexInternal (lexState_t* state)
                         _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
                         goto _internalError;
                     }
-                    tok->semVal[bufPos] = curChar;
+                    semVal[bufPos] = curChar;
                     ++bufPos;
                     curChar = _lexReadChar (state);
                     EXPECT_NO_EOF (curChar);
                 }
-                tok->semVal[bufPos] = 0;
+                semVal[bufPos] = 0;
+                tok->semVal = StrRefCreate (semVal);
                 state->isAccepted = true;
                 break;
             case '"':
@@ -769,6 +772,7 @@ _confToken_t* _lexInternal (lexState_t* state)
                 // This is the hardest contsruct to lex
                 tok->type = LEX_TOKEN_STR;
                 tok->line = state->line;
+                semVal = malloc_s (STRINGMAX * sizeof (char32_t));
                 curChar = _lexReadChar (state);
                 while (curChar != '"')
                 {
@@ -835,7 +839,7 @@ _confToken_t* _lexInternal (lexState_t* state)
                     else if (curChar == '$')
                     {
                         // Get variable name
-                        char varName[VARNAME_SIZE] = {0};
+                        char varName[VARMAX] = {0};
                         unsigned long varBufPos = 0;
                         curChar = _lexReadChar (state);
                         while (curChar != '$')
@@ -849,7 +853,7 @@ _confToken_t* _lexInternal (lexState_t* state)
                             // Add to buffer
                             varName[varBufPos] = (char) curChar;
                             ++varBufPos;
-                            if (varBufPos >= VARNAME_SIZE)
+                            if (varBufPos >= VARMAX)
                             {
                                 _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
                                 goto _internalError;
@@ -861,15 +865,21 @@ _confToken_t* _lexInternal (lexState_t* state)
                         char* var = getenv (varName);
                         if (var)
                         {
+                            size_t varLen = strlen (var);
+                            if (varLen > STRINGMAX)
+                            {
+                                _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
+                                goto _internalError;
+                            }
                             // Convert to char32_t
-                            size_t varLen = strlen (var) * sizeof (char32_t);
-                            char32_t* var32 = (char32_t*) malloc_s (varLen);
+                            char32_t* var32 =
+                                (char32_t*) malloc_s (STRINGMAX * sizeof (char32_t));
                             mbstate_t mbstate;
                             memset (&mbstate, 0, sizeof (mbstate_t));
                             if (mbstoc32s (var32,
                                            var,
                                            varLen,
-                                           varLen / sizeof (char32_t),
+                                           STRINGMAX * sizeof (char32_t),
                                            &mbstate) == -1)
                             {
                                 free (var32);
@@ -878,18 +888,18 @@ _confToken_t* _lexInternal (lexState_t* state)
                                            strerror (errno));
                                 goto _internalError;
                             }
-                            tok->semVal[bufPos] = 0;
-                            // Concatenate variable name
-                            if (c32lcat (tok->semVal,
+                            semVal[bufPos] = 0;
+                            // Concatenate variable
+                            if (c32lcat (semVal,
                                          var32,
-                                         TOK_SEM_SIZE * sizeof (char32_t)) >=
-                                (TOK_SEM_SIZE * sizeof (char32_t)))
+                                         STRINGMAX * sizeof (char32_t)) >=
+                                (STRINGMAX * sizeof (char32_t)))
                             {
                                 free (var32);
                                 _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
                                 goto _internalError;
                             }
-                            bufPos += (varLen / sizeof (char32_t));
+                            bufPos += varLen;
                             free (var32);
                         }
                         goto strEnd;
@@ -899,13 +909,14 @@ _confToken_t* _lexInternal (lexState_t* state)
                         _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
                         goto _internalError;
                     }
-                    tok->semVal[bufPos] = curChar;
+                    semVal[bufPos] = curChar;
                     ++bufPos;
                 strEnd:
                     curChar = _lexReadChar (state);
                     EXPECT_NO_EOF (curChar);
                 }
-                tok->semVal[bufPos] = 0;
+                semVal[bufPos] = 0;
+                tok->semVal = StrRefCreate (semVal);
                 state->isAccepted = true;
                 break;
             unkownToken:

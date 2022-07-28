@@ -45,16 +45,6 @@ LIBCONF_PUBLIC void _confSetFileName (const char* file)
 
 LIBCONF_PUBLIC void ConfFreeParseTree (ListHead_t* list)
 {
-    // Destroy each property list
-    ListEntry_t* entry = ListFront (list);
-    while (entry)
-    {
-        ListRef (entry);
-        ListDestroy ((ListHead_t*) ((ConfBlock_t*) ListEntryData (entry))->props);
-        ListEntry_t* oldEntry = entry;
-        entry = ListIterate (entry);
-        ListDeRef (oldEntry);
-    }
     // Destroy the list
     ListDestroy (list);
 }

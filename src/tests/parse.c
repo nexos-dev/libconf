@@ -23,6 +23,7 @@
 #include <string.h>
 #define NEXTEST_NAME "parse"
 #include <libnex/progname.h>
+#include <libnex/stringref.h>
 #include <nextest.h>
 
 int main()
@@ -33,18 +34,19 @@ int main()
     ListHead_t* list = ConfInit ("testParse.testxt");
     ListEntry_t* entry = NULL;
     ConfBlock_t* block = NULL;
-    entry = ListPopFront (list);
+    entry = ListFront (list);
+    ListEntry_t* mainEnt = entry;
     block = ListEntryData (entry);
-    TEST_BOOL_ANON (!c32cmp (block->blockName, U"test"));
-    TEST_BOOL_ANON (!c32cmp (block->blockType, U"package"));
-    entry = ListPopFront (block->props);
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (block->blockName), U"test"));
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (block->blockType), U"package"));
+    entry = ListFront (block->props);
     ConfProperty_t* prop = ListEntryData (entry);
-    TEST_BOOL_ANON (!c32cmp (prop->name, U"test"));
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->name), U"test"));
     for (int i = 0; i < prop->nextVal; ++i)
     {
         if (prop->vals[i].type == DATATYPE_IDENTIFIER)
         {
-            TEST_BOOL_ANON (!c32cmp (prop->vals[i].id, U"one"));
+            TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->vals[i].id), U"one"));
         }
         else if (prop->vals[i].type == DATATYPE_NUMBER)
         {
@@ -52,33 +54,34 @@ int main()
         }
         else if (prop->vals[i].type == DATATYPE_STRING)
         {
-            TEST_BOOL_ANON (!c32cmp (prop->vals[i].str, U"test"));
+            TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->vals[i].str), U"test"));
         }
     }
-    entry = ListPopFront (block->props);
+    entry = ListIterate (entry);
     prop = ListEntryData (entry);
-    TEST_BOOL_ANON (!c32cmp (prop->name, U"prop"));
-    TEST_BOOL_ANON (!c32cmp (prop->vals[0].id, U"propVal"));
-    entry = ListPopFront (block->props);
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->name), U"prop"));
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->vals[0].id), U"propVal"));
+    entry = ListIterate (entry);
     prop = ListEntryData (entry);
-    TEST_BOOL_ANON (!c32cmp (prop->name, U"prop"));
-    TEST_BOOL_ANON (!c32cmp (prop->vals[0].str, U"string"));
-    entry = ListPopFront (block->props);
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->name), U"prop"));
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->vals[0].str), U"string"));
+    entry = ListIterate (entry);
     prop = ListEntryData (entry);
-    TEST_BOOL_ANON (!c32cmp (prop->name, U"prop"));
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->name), U"prop"));
     TEST_ANON (prop->vals[0].numVal, 0x20);
-    entry = ListPopFront (list);
+    entry = ListIterate (mainEnt);
+    mainEnt = entry;
     block = ListEntryData (entry);
-    TEST_BOOL_ANON (!c32cmp (block->blockName, U"test"));
-    TEST_BOOL_ANON (!c32cmp (block->blockType, U"package"));
-    entry = ListPopFront (block->props);
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (block->blockName), U"test"));
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (block->blockType), U"package"));
+    entry = ListFront (block->props);
     prop = ListEntryData (entry);
-    TEST_BOOL_ANON (!c32cmp (prop->name, U"test"));
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->name), U"test"));
     for (int i = 0; i < prop->nextVal; ++i)
     {
         if (prop->vals[i].type == DATATYPE_IDENTIFIER)
         {
-            TEST_BOOL_ANON (!c32cmp (prop->vals[i].id, U"one"));
+            TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->vals[i].id), U"one"));
         }
         else if (prop->vals[i].type == DATATYPE_NUMBER)
         {
@@ -86,33 +89,33 @@ int main()
         }
         else if (prop->vals[i].type == DATATYPE_STRING)
         {
-            TEST_BOOL_ANON (!c32cmp (prop->vals[i].str, U"test"));
+            TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->vals[i].str), U"test"));
         }
     }
-    entry = ListPopFront (block->props);
+    entry = ListIterate (entry);
     prop = ListEntryData (entry);
-    TEST_BOOL_ANON (!c32cmp (prop->name, U"prop"));
-    TEST_BOOL_ANON (!c32cmp (prop->vals[0].id, U"propVal"));
-    entry = ListPopFront (block->props);
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->name), U"prop"));
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->vals[0].id), U"propVal"));
+    entry = ListIterate (entry);
     prop = ListEntryData (entry);
-    TEST_BOOL_ANON (!c32cmp (prop->name, U"prop"));
-    TEST_BOOL_ANON (!c32cmp (prop->vals[0].str, U"string"));
-    entry = ListPopFront (block->props);
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->name), U"prop"));
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->vals[0].str), U"string"));
+    entry = ListIterate (entry);
     prop = ListEntryData (entry);
-    TEST_BOOL_ANON (!c32cmp (prop->name, U"prop"));
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->name), U"prop"));
     TEST_ANON (prop->vals[0].numVal, 0x20);
-    entry = ListPopFront (list);
+    entry = ListIterate (mainEnt);
     block = ListEntryData (entry);
-    TEST_BOOL_ANON (!c32cmp (block->blockName, U"test"));
-    TEST_BOOL_ANON (!c32cmp (block->blockType, U"block"));
-    entry = ListPopFront (block->props);
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (block->blockName), U"test"));
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (block->blockType), U"block"));
+    entry = ListFront (block->props);
     prop = ListEntryData (entry);
-    TEST_BOOL_ANON (!c32cmp (prop->name, U"test"));
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->name), U"test"));
     for (int i = 0; i < prop->nextVal; ++i)
     {
         if (prop->vals[i].type == DATATYPE_IDENTIFIER)
         {
-            TEST_BOOL_ANON (!c32cmp (prop->vals[i].id, U"one"));
+            TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->vals[i].id), U"one"));
         }
         else if (prop->vals[i].type == DATATYPE_NUMBER)
         {
@@ -120,20 +123,21 @@ int main()
         }
         else if (prop->vals[i].type == DATATYPE_STRING)
         {
-            TEST_BOOL_ANON (!c32cmp (prop->vals[i].str, U"test"));
+            TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->vals[i].str), U"test"));
         }
     }
-    entry = ListPopFront (block->props);
+    entry = ListIterate (entry);
     prop = ListEntryData (entry);
-    TEST_BOOL_ANON (!c32cmp (prop->name, U"prop"));
-    TEST_BOOL_ANON (!c32cmp (prop->vals[0].id, U"propVal"));
-    entry = ListPopFront (block->props);
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->name), U"prop"));
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->vals[0].id), U"propVal"));
+    entry = ListIterate (entry);
     prop = ListEntryData (entry);
-    TEST_BOOL_ANON (!c32cmp (prop->name, U"prop"));
-    TEST_BOOL_ANON (!c32cmp (prop->vals[0].str, U"string"));
-    entry = ListPopFront (block->props);
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->name), U"prop"));
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->vals[0].str), U"string"));
+    entry = ListIterate (entry);
     prop = ListEntryData (entry);
-    TEST_BOOL_ANON (!c32cmp (prop->name, U"prop"));
+    TEST_BOOL_ANON (!c32cmp (StrRefGet (prop->name), U"prop"));
     TEST_ANON (prop->vals[0].numVal, 0x20);
+    ConfFreeParseTree (list);
     return 0;
 }

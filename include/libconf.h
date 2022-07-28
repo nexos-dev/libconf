@@ -23,14 +23,13 @@
 #include <libconf/libconf_config.h>
 #include <libnex/char32.h>
 #include <libnex/list.h>
+#include <libnex/stringref.h>
 
-#define MAX_PROPVAR 64    // The maximum amount of values in a property
+#define MAX_PROPVAR 16    // The maximum amount of values in a property
 
 #define DATATYPE_IDENTIFIER 0    ///< Value of property is a identifier
 #define DATATYPE_STRING     1    ///< Value of property is a string
 #define DATATYPE_NUMBER     2    ///< Value of property is a number
-
-#define BLOCK_BUFSZ 512
 
 ///< The value of a property
 typedef struct tagPropertyValue
@@ -38,9 +37,9 @@ typedef struct tagPropertyValue
     int lineNo;    ///< The line number of this property value
     union          ///< The value of this property
     {
-        char32_t id[BLOCK_BUFSZ];     ///< An identifier
-        char32_t str[BLOCK_BUFSZ];    /// ... or a string
-        int64_t numVal;               ///< ... or a number
+        StringRef32_t* id;     ///< An identifier
+        StringRef32_t* str;    /// ... or a string
+        int64_t numVal;        ///< ... or a number
     };
     int type;    ///< 0 = identifier, 1 = string, 2 = numeric
 } ConfPropVal_t;
@@ -49,8 +48,8 @@ typedef struct tagPropertyValue
 /// configured
 typedef struct tagProperty
 {
-    int lineNo;                    ///< The line number of this property declaration
-    char32_t name[BLOCK_BUFSZ];    ///< The property represented here
+    int lineNo;             ///< The line number of this property declaration
+    StringRef32_t* name;    ///< The property represented here
     ConfPropVal_t vals[MAX_PROPVAR];    ///< 64 comma seperated values
     int nextVal;                        ///< The next value to work with
 } ConfProperty_t;
@@ -65,8 +64,8 @@ typedef struct tagProperty
 typedef struct tagBlock
 {
     int lineNo;    ///< The line number of this block declaration in the source file
-    char32_t blockType[BLOCK_BUFSZ];    ///< What this block specifies
-    char32_t blockName[BLOCK_BUFSZ];    ///< The name of this block
+    StringRef32_t* blockType;    ///< What this block specifies
+    StringRef32_t* blockName;    ///< The name of this block
     ListHead_t* props;    ///< The list of properties associated with this block
 } ConfBlock_t;
 
