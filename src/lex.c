@@ -753,7 +753,7 @@ _confToken_t* _lexInternal (lexState_t* state)
                             curChar = '\'';
                         }
                     }
-                    if (bufPos >= TOK_SEM_SIZE)
+                    if (bufPos >= STRINGMAX)
                     {
                         _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
                         goto _internalError;
@@ -904,7 +904,7 @@ _confToken_t* _lexInternal (lexState_t* state)
                         }
                         goto strEnd;
                     }
-                    if (bufPos >= TOK_SEM_SIZE)
+                    if (bufPos >= STRINGMAX)
                     {
                         _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
                         goto _internalError;
