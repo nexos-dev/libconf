@@ -847,8 +847,8 @@ _confToken_t* _lexInternal (lexState_t* state)
                             // Check validity
                             if (!_lexIsIdChar (curChar))
                             {
-                                _lexError (state, LEX_ERROR_INVALID_VAR_ID, NULL);
-                                goto _internalError;
+                                _lexReturnChar (state, curChar);
+                                break;
                             }
                             // Add to buffer
                             varName[varBufPos] = (char) curChar;

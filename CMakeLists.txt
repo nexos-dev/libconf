@@ -22,7 +22,7 @@ enable_language(C)
 # Options
 option(LIBCONF_ENABLE_TESTS "Specifies if the test suite should be built" OFF)
 option(BUILD_SHARED_LIBS "Specifies if shared libraries should be built" OFF)
-option(LIBCONF_LINK_DEPS "Specifies if dependencies should automatically be linked into libconf")
+option(LIBCONF_LINK_DEPS "Specifies if dependencies should automatically be linked into libconf" ON)
 option(LIBCONF_ENABLE_PROFILING "Allow output to be profiled with gprof" OFF)
 
 # Enable testing
