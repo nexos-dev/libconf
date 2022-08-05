@@ -163,7 +163,7 @@ static inline void _lexError (lexState_t* state, int err, const char* extra)
                 snprintf (buf, 2048 - (buf - obuf), "Invalid character in variable");
             break;
         case LEX_ERROR_INTERNAL:
-            buf += snprintf (buf, 2048 - (buf - obuf), "internal error: %s", extra);
+            buf += snprintf (buf, 2048 - (buf - obuf), "internal error: %s: %s", ConfGetFileName(), extra);
             break;
     }
     // Silence clang-tidy warnings about buf being unused
