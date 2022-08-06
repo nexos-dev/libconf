@@ -891,9 +891,8 @@ _confToken_t* _lexInternal (lexState_t* state)
                                            strerror (errno));
                                 goto _internalError;
                             }
-                            semVal[bufPos] = 0;
                             // Concatenate variable
-                            if (c32lcat (semVal,
+                            if (c32lcpy (semVal + bufPos,
                                          var32,
                                          STRINGMAX * sizeof (char32_t)) >=
                                 (STRINGMAX * sizeof (char32_t)))
