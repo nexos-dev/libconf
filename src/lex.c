@@ -113,8 +113,6 @@ static inline void _lexError (lexState_t* state, int err, const char* extra)
 
     if (state)
         buf += snprintf (buf, 2048 - (buf - obuf), "%d: ", state->line);
-    else
-        buf += snprintf (buf, 2048 - (buf - obuf), " ");
     // Decide how to handle the error
     switch (err)
     {
@@ -163,7 +161,12 @@ static inline void _lexError (lexState_t* state, int err, const char* extra)
                 snprintf (buf, 2048 - (buf - obuf), "Invalid character in variable");
             break;
         case LEX_ERROR_INTERNAL:
-            buf += snprintf (buf, 2048 - (buf - obuf), "internal error: %s: %s", ConfGetFileName(), extra);
+            printf ("%s\n", ConfGetFileName());
+            buf += snprintf (buf,
+                             2048 - (buf - obuf),
+                             "internal error: %s: %s",
+                             ConfGetFileName(),
+                             extra);
             break;
     }
     // Silence clang-tidy warnings about buf being unused
