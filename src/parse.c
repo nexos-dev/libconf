@@ -50,7 +50,8 @@ static void _parseDestroyBlock (const void* data)
 {
     ConfBlock_t* block = (ConfBlock_t*) data;
     StrRefDestroy (block->blockType);
-    StrRefDestroy (block->blockName);
+    if (block->blockName)
+        StrRefDestroy (block->blockName);
     ListDestroy (block->props);
     free (block);
 }
