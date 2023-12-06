@@ -22,7 +22,6 @@
 
 #include <libconf.h>
 #include <libconf/libconf_config.h>
-#include <libintl.h>
 #include <libnex/char32.h>
 #include <libnex/list.h>
 #include <libnex/stringref.h>
