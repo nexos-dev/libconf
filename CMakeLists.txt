@@ -26,6 +26,11 @@ option(LIBCONF_LINK_DEPS "Specifies if dependencies should automatically be link
 option(LIBCONF_ENABLE_PROFILING "Allow output to be profiled with gprof" OFF)
 option(LIBCONF_BUILDONLY "Specifies if installing should be skipped" OFF)
 
+if(LIBCONF_BUILDONLY AND BUILD_SHARED_LIBS)
+    message(STATUS "LIBCONF_BUILDONLY specified, turning BUILD_SHARED_LIBS off")
+    set(BUILD_SHARED_LIBS OFF)
+endif()
+
 # Enable testing
 if(${LIBCONF_ENABLE_TESTS} AND NOT ${CMAKE_CROSSCOMPILING})
     enable_testing()
