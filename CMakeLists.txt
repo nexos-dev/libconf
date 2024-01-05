@@ -86,7 +86,7 @@ else()
 endif()
 
 # Install it
-if(NOT LIBCHARDET_BUILDONLY)
+if(NOT LIBCONF_BUILDONLY)
     install(TARGETS conf)
     install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/libconf.h
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libconf)
@@ -118,7 +118,7 @@ write_basic_package_version_file(${CMAKE_BINARY_DIR}/LibConfConfigVersion.cmake
                                  COMPATIBILITY AnyNewerVersion)
 
 # Install cmake package files
-if(NOT LIBCHARDET_BUILDONLY)
+if(NOT LIBCONF_BUILDONLY)
     install(FILES ${CMAKE_BINARY_DIR}/LibConfConfig.cmake 
             DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/cmake)
     install(FILES ${CMAKE_BINARY_DIR}/LibConfConfigVersion.cmake 
