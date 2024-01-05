@@ -24,6 +24,7 @@ option(LIBCONF_ENABLE_TESTS "Specifies if the test suite should be built" OFF)
 option(BUILD_SHARED_LIBS "Specifies if shared libraries should be built" OFF)
 option(LIBCONF_LINK_DEPS "Specifies if dependencies should automatically be linked into libconf" ON)
 option(LIBCONF_ENABLE_PROFILING "Allow output to be profiled with gprof" OFF)
+option(LIBCONF_BUILDONLY "Specifies if installing should be skipped" OFF)
 
 # Enable testing
 if(${LIBCONF_ENABLE_TESTS} AND NOT ${CMAKE_CROSSCOMPILING})
@@ -80,11 +81,13 @@ else()
 endif()
 
 # Install it
-install(TARGETS conf)
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/libconf.h
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libconf)
-install(FILES ${CMAKE_BINARY_DIR}/libconf/libconf_config.h 
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libconf)
+if(NOT LIBCHARDET_BUILDONLY)
+    install(TARGETS conf)
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/libconf.h
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libconf)
+    install(FILES ${CMAKE_BINARY_DIR}/libconf/libconf_config.h 
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libconf)
+endif()
 
 # Figure out library type
 if(BUILD_SHARED_LIBS)
@@ -110,10 +113,12 @@ write_basic_package_version_file(${CMAKE_BINARY_DIR}/LibConfConfigVersion.cmake
                                  COMPATIBILITY AnyNewerVersion)
 
 # Install cmake package files
-install(FILES ${CMAKE_BINARY_DIR}/LibConfConfig.cmake 
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/cmake)
-install(FILES ${CMAKE_BINARY_DIR}/LibConfConfigVersion.cmake 
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/cmake)
+if(NOT LIBCHARDET_BUILDONLY)
+    install(FILES ${CMAKE_BINARY_DIR}/LibConfConfig.cmake 
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/cmake)
+    install(FILES ${CMAKE_BINARY_DIR}/LibConfConfigVersion.cmake 
+            DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/cmake)
+endif()
 
 # Setup test cases
 list(APPEND CONF_TESTS lex parse)
