@@ -98,9 +98,6 @@
 // Prints out an error condition
 static inline void _lexError (lexState_t* state, int err, const char* extra)
 {
-    mbstate_t mbState;
-    memset (&mbState, 0, sizeof (mbstate_t));
-    size_t mbBytesWritten = 0;
 
     char extraBuf[5];
     char bufData[2048];
@@ -125,19 +122,11 @@ static inline void _lexError (lexState_t* state, int err, const char* extra)
                              _confLexGetTokenName (state->tok));
             break;
         case LEX_ERROR_UNKNOWN_TOKEN:
-            // Convert current char to a char
-            mbBytesWritten = c32rtomb (extraBuf, state->curChar, &mbState);
-            if (mbBytesWritten == -1)
-                error ("internal error: %s", strerror (errno));
-            else
-            {
-                extraBuf[mbBytesWritten] = '\0';
-                // Add everything
-                buf += snprintf (buf,
-                                 2048 - (buf - obuf),
-                                 "Unknown token '%s'",
-                                 extraBuf);
-            }
+            // Add everything
+            buf += snprintf (buf,
+                             2048 - (buf - obuf),
+                             "Unknown token '%c'",
+                             state->curChar);
             break;
         case LEX_ERROR_UNEXPECTED_EOF:
             // Print out string
@@ -227,9 +216,9 @@ void _confLexDestroy (lexState_t* state)
 }
 
 // Reads a character from the file
-static inline char32_t _lexReadChar (lexState_t* state)
+static inline char _lexReadChar (lexState_t* state)
 {
-    char32_t c = 0;
+    char c = 0;
     short res = 0;
     // Check if state.nextChar is set
     if (state->nextChar)
@@ -254,26 +243,26 @@ static inline char32_t _lexReadChar (lexState_t* state)
 }
 
 // Peek at the next character in the file
-static inline char32_t _lexPeekChar (lexState_t* state)
+static inline char _lexPeekChar (lexState_t* state)
 {
-    char32_t __c = 0;
-    short __res = 0;
+    char c = 0;
+    short res = 0;
     // Check if nextChar is set
     if (state->nextChar)
-        __c = state->nextChar;
+        c = state->nextChar;
     else
     {
         // Read in a character, setting nextChar
-        TextReadChar (state->stream, &__c);
+        TextReadChar (state->stream, &c);
         // Check for end of file
         if (TextIsEof (state->stream))
         {
             state->isEof = 1;
             return '\0';
         }
-        state->nextChar = __c;
+        state->nextChar = c;
     }
-    return __c;
+    return c;
 }
 
 // Returns a character to the buffer
@@ -283,7 +272,7 @@ static inline char32_t _lexPeekChar (lexState_t* state)
 #define _lexSkipChar(state) ((state)->nextChar = 0)
 
 // Checks if the current character is whitespace
-static inline bool _lexIsSpace (char32_t c)
+static inline bool _lexIsSpace (char c)
 {
     switch (c)
     {
@@ -300,7 +289,7 @@ static inline bool _lexIsSpace (char32_t c)
 }
 
 // Checks if the current character is numeric
-static inline bool _lexIsNumeric (char32_t c, uint8_t base)
+static inline bool _lexIsNumeric (char c, uint8_t base)
 {
     switch (c)
     {
@@ -334,7 +323,7 @@ static inline bool _lexIsNumeric (char32_t c, uint8_t base)
 }
 
 // Checks if the current character is a valid ID character
-static inline bool _lexIsIdChar (char32_t c)
+static inline bool _lexIsIdChar (char c)
 {
     switch (c)
     {
@@ -429,12 +418,12 @@ _confToken_t* _lexInternal (lexState_t* state)
         tok->type = LEX_TOKEN_EOF;
         return tok;
     }
-    // Ensure that state is not currently acceptec
+    // Ensure that state is not currently accepted
     state->isAccepted = false;
     while (!state->isAccepted)
     {
         // Read in a character
-        char32_t curChar = _lexReadChar (state);
+        char curChar = _lexReadChar (state);
         // Decide what to do with this character
         switch (curChar)
         {
@@ -603,7 +592,7 @@ _confToken_t* _lexInternal (lexState_t* state)
                 tok->type = LEX_TOKEN_ID;
                 tok->line = state->line;
 #define VARMAX 32
-                char32_t* semVal = malloc_s (VARMAX * sizeof (char32_t));
+                char* semVal = malloc_s (VARMAX * sizeof (char));
                 if (!semVal)
                     goto _internalError;
                 // Add the rest of it
@@ -624,7 +613,7 @@ _confToken_t* _lexInternal (lexState_t* state)
                 // Return character to buffer
                 _lexReturnChar (state, curChar);
                 // Check if this is a keyword
-                if (!c32cmp (semVal, U"include"))
+                if (!strcmp (semVal, "include"))
                     tok->type = LEX_TOKEN_INCLUDE;
                 tok->semVal = StrRefCreate (semVal);
                 // Accept
@@ -664,7 +653,7 @@ _confToken_t* _lexInternal (lexState_t* state)
                 // Prepare the token
                 tok->type = LEX_TOKEN_NUM;
                 tok->line = state->line;
-                semVal = malloc_s (VARMAX * sizeof (char32_t));
+                semVal = malloc_s (VARMAX * sizeof (char));
                 if (!semVal)
                     goto _internalError;
                 // Add rest of value
@@ -692,7 +681,7 @@ _confToken_t* _lexInternal (lexState_t* state)
                 // Return first non-numeric character
                 _lexReturnChar (state, curChar);
                 // Convert the string to numeric
-                tok->num = strtoll (UnicodeToHost (semVal), NULL, tok->base);
+                tok->num = strtoll (semVal, NULL, tok->base);
                 if (tok->num == LONG_MIN || tok->num == LONG_MAX)
                 {
                     _lexError (state, LEX_ERROR_INTERNAL, strerror (errno));
@@ -708,7 +697,7 @@ _confToken_t* _lexInternal (lexState_t* state)
                 tok->line = state->line;
                 curChar = _lexReadChar (state);
 #define STRINGMAX 128
-                semVal = malloc_s (STRINGMAX * sizeof (char32_t));
+                semVal = malloc_s (STRINGMAX);
                 while (curChar != '\'')
                 {
                     // Handle escape sequences
@@ -728,7 +717,7 @@ _confToken_t* _lexInternal (lexState_t* state)
                                 _lexPeekChar (state) == '\r')
                             {
                                 ++state->line;
-                                char32_t oc = _lexPeekChar (state);
+                                char oc = _lexPeekChar (state);
                                 _lexSkipChar (state);
                                 // Skip over LF in case of CR
                                 if (_lexPeekChar (state) == '\n' && oc == '\r')
@@ -775,7 +764,7 @@ _confToken_t* _lexInternal (lexState_t* state)
                 // This is the hardest contsruct to lex
                 tok->type = LEX_TOKEN_STR;
                 tok->line = state->line;
-                semVal = malloc_s (STRINGMAX * sizeof (char32_t));
+                semVal = malloc_s (STRINGMAX);
                 curChar = _lexReadChar (state);
                 while (curChar != '"')
                 {
@@ -796,7 +785,7 @@ _confToken_t* _lexInternal (lexState_t* state)
                                 _lexPeekChar (state) == '\r')
                             {
                                 ++state->line;
-                                char32_t oc = _lexPeekChar (state);
+                                char oc = _lexPeekChar (state);
                                 _lexSkipChar (state);
                                 // Skip over LF in case of CR
                                 if (_lexPeekChar (state) == '\n' && oc == '\r')
@@ -854,7 +843,7 @@ _confToken_t* _lexInternal (lexState_t* state)
                                 break;
                             }
                             // Add to buffer
-                            varName[varBufPos] = (char) curChar;
+                            varName[varBufPos] = curChar;
                             ++varBufPos;
                             if (varBufPos >= VARMAX)
                             {
@@ -874,35 +863,14 @@ _confToken_t* _lexInternal (lexState_t* state)
                                 _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
                                 goto _internalError;
                             }
-                            // Convert to char32_t
-                            char32_t* var32 =
-                                (char32_t*) malloc_s (STRINGMAX * sizeof (char32_t));
-                            mbstate_t mbstate;
-                            memset (&mbstate, 0, sizeof (mbstate_t));
-                            if (mbstoc32s (var32,
-                                           var,
-                                           varLen,
-                                           STRINGMAX * sizeof (char32_t),
-                                           &mbstate) == -1)
-                            {
-                                free (var32);
-                                _lexError (state,
-                                           LEX_ERROR_INTERNAL,
-                                           strerror (errno));
-                                goto _internalError;
-                            }
                             // Concatenate variable
-                            if (c32lcpy (semVal + bufPos,
-                                         var32,
-                                         STRINGMAX * sizeof (char32_t)) >=
-                                (STRINGMAX * sizeof (char32_t)))
+                            if (strlcpy (semVal + bufPos, var, STRINGMAX) >=
+                                (STRINGMAX))
                             {
-                                free (var32);
                                 _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
                                 goto _internalError;
                             }
                             bufPos += varLen;
-                            free (var32);
                         }
                         goto strEnd;
                     }

@@ -72,20 +72,20 @@ int main()
     tok = _confLex (state);
     TEST_ANON (tok->type, 8);
     TEST_ANON (tok->line, 18);
-    TEST_BOOL_ANON (!c32cmp (StrRefGet (tok->semVal), U"test2-test3_"));
+    TEST_BOOL_ANON (!strcmp (StrRefGet (tok->semVal), "test2-test3_"));
     StrRefDestroy (tok->semVal);
     free (tok);
     tok = _confLex (state);
     TEST_ANON (tok->type, 11);
     TEST_ANON (tok->line, 20);
-    TEST_BOOL_ANON (!c32cmp (StrRefGet (tok->semVal), U"test t \\ '"));
+    TEST_BOOL_ANON (!strcmp (StrRefGet (tok->semVal), "test t \\ '"));
     StrRefDestroy (tok->semVal);
     free (tok);
     tok = _confLex (state);
     TEST_ANON (tok->type, 11);
     TEST_ANON (tok->line, 22);
     TEST_BOOL_ANON (
-        !c32cmp (StrRefGet (tok->semVal), U"test string en_US.UTF-8 $ \" \ntest"));
+        !strcmp (StrRefGet (tok->semVal), "test string en_US.UTF-8 $ \" \ntest"));
     StrRefDestroy (tok->semVal);
     free (tok);
     tok = _confLex (state);

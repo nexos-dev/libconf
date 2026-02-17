@@ -177,8 +177,7 @@ static _confToken_t* _parseBlock (parseState_t* state, _confToken_t* tok)
         return NULL;
     // Initialize it
     block->lineNo = tok->line;
-    block->props = ListCreate ("ConfProperty", false, 0);
-    ListSetDestroy (block->props, _parseDestroyProp);
+    block->props = ListCreate ("ConfProperty", NULL, _parseDestroyProp, 0);
     // Set type of block
     block->blockType = StrRefNew (tok->semVal);
     // Check if block has a name
@@ -371,21 +370,12 @@ static inline _confToken_t* _parseInclude (parseState_t* state, _confToken_t* to
     _confToken_t* pathTok = _parseExpect (state, tok, LEX_TOKEN_STR);
     if (!pathTok)
         return NULL;
-    // Convert string value to multibyte
-    size_t len = c32len (StrRefGet (pathTok->semVal));
-    char* mbPath = malloc_s ((len * MB_CUR_MAX) + 1);
-    mbstate_t mbState = {0};
-    if (c32stombs (mbPath, StrRefGet (pathTok->semVal), len, &mbState) < 0)
-    {
-        _parseError (state, pathTok, PARSE_ERROR_INTERNAL, strerror (errno));
-        return NULL;
-    }
     // Set file name
     const char* oldFile = ConfGetFileName();
-    _confSetFileName (mbPath);
+    _confSetFileName (StrRefGet (pathTok->semVal));
     // Create a new parser context
     parseState_t newState;
-    newState.lex = _confLexInit (mbPath);
+    newState.lex = _confLexInit (StrRefGet (pathTok->semVal));
     if (!newState.lex)
         return NULL;
     newState.lastToken = NULL;
@@ -394,7 +384,6 @@ static inline _confToken_t* _parseInclude (parseState_t* state, _confToken_t* to
     if (!_parseInternal (&newState))
         return NULL;
     _confSetFileName (oldFile);
-    free (mbPath);
     return pathTok;
 }
 
@@ -408,8 +397,7 @@ ListHead_t* _confParse (const char* file)
     ConfBlock_t* block = NULL;
     parseState_t state = {0};
     state.lex = lexState;
-    state.head = ListCreate ("ConfBlock", false, 0);
-    ListSetDestroy (state.head, _parseDestroyBlock);
+    state.head = ListCreate ("ConfBlock", NULL, _parseDestroyBlock, 0);
     if (!_parseInternal (&state))
     {
         ConfFreeParseTree (state.head);

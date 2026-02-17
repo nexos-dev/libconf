@@ -37,9 +37,9 @@ typedef struct tagPropertyValue
     int lineNo;    ///< The line number of this property value
     union          ///< The value of this property
     {
-        StringRef32_t* id;     ///< An identifier
-        StringRef32_t* str;    /// ... or a string
-        int64_t numVal;        ///< ... or a number
+        StringRef_t* id;     ///< An identifier
+        StringRef_t* str;    /// ... or a string
+        int64_t numVal;      ///< ... or a number
     };
     int type;    ///< 0 = identifier, 1 = string, 2 = numeric
 } ConfPropVal_t;
@@ -48,8 +48,9 @@ typedef struct tagPropertyValue
 /// configured
 typedef struct tagProperty
 {
-    int lineNo;             ///< The line number of this property declaration
-    StringRef32_t* name;    ///< The property represented here
+    ListEntry_t link;
+    int lineNo;           ///< The line number of this property declaration
+    StringRef_t* name;    ///< The property represented here
     ConfPropVal_t vals[MAX_PROPVAR];    ///< 64 comma seperated values
     int nextVal;                        ///< The next value to work with
 } ConfProperty_t;
@@ -63,10 +64,11 @@ typedef struct tagProperty
 
 typedef struct tagBlock
 {
+    ListEntry_t link;
     int lineNo;    ///< The line number of this block declaration in the source file
-    StringRef32_t* blockType;    ///< What this block specifies
-    StringRef32_t* blockName;    ///< The name of this block
-    ListHead_t* props;    ///< The list of properties associated with this block
+    StringRef_t* blockType;    ///< What this block specifies
+    StringRef_t* blockName;    ///< The name of this block
+    ListHead_t* props;         ///< The list of properties associated with this block
 } ConfBlock_t;
 
 /**

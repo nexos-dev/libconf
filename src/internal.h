@@ -32,11 +32,11 @@
 /// Specifies a token that was parsed by the lexer
 typedef struct _confToken
 {
-    int type;                 ///< The type of token that was parsed
-    int line;                 ///< The line that this token is on
-    StringRef32_t* semVal;    ///< Semantic value of token
-    int64_t num;              ///< Numeric value of token
-    uint16_t base;            ///< Base of token
+    int type;               ///< The type of token that was parsed
+    int line;               ///< The line that this token is on
+    StringRef_t* semVal;    ///< Semantic value of token
+    int64_t num;            ///< Numeric value of token
+    uint16_t base;          ///< Base of token
 } _confToken_t;
 
 /// The state of the lexer
@@ -48,13 +48,13 @@ typedef struct _lexState
     bool isAccepted;      ///< Is the current token accepted?
     _confToken_t* tok;    ///< Current token
     // Diagnostic data
-    int line;            ///< Line number in lexer
-    char32_t curChar;    ///< Current character
+    int line;        ///< Line number in lexer
+    char curChar;    ///< Current character
     // Peek releated information
-    char32_t nextChar;    ///< Contains the next character. If the read functions
-                          ///< find this set, then they use this
-                          /// instead
-    int loc;              ///< Location in states table
+    char nextChar;    ///< Contains the next character. If the read functions
+                      ///< find this set, then they use this
+                      /// instead
+    int loc;          ///< Location in states table
 } lexState_t;
 
 /**
