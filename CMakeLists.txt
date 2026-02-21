@@ -25,6 +25,7 @@ option(BUILD_SHARED_LIBS "Specifies if shared libraries should be built" OFF)
 option(LIBCONF_LINK_DEPS "Specifies if dependencies should automatically be linked into libconf" ON)
 option(LIBCONF_ENABLE_PROFILING "Allow output to be profiled with gprof" OFF)
 option(LIBCONF_BUILDONLY "Specifies if installing should be skipped" OFF)
+option(LIBCONF_NO_CHARDET "Specifies if character set detection should be disable" OFF)
 
 if(LIBCONF_BUILDONLY AND BUILD_SHARED_LIBS)
     message(STATUS "LIBCONF_BUILDONLY specified, turning BUILD_SHARED_LIBS off")
@@ -46,7 +47,9 @@ endif()
 
 if(LIBCONF_LINK_DEPS)
     find_package(LibNex REQUIRED)
-    find_package(LibChardet REQUIRED)
+    if(NOT LIBCONF_NO_CHARDET)
+        find_package(LibChardet REQUIRED)
+    endif()
 endif()
 
 include(GNUInstallDirs)
@@ -78,12 +81,23 @@ target_include_directories(conf PUBLIC include)
 # Set SOName
 set_target_properties(conf PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
 
-if (LIBCONF_LINK_DEPS)
-    # Link with libnex and libchardet
-    target_link_libraries(conf PUBLIC LibNex::nex LibChardet::chardet)
-else()
-    target_link_libraries(conf PUBLIC nex chardet)
+
+if(NOT LIBCONF_NO_CHARDET)
+    if(LIBCONF_LINK_DEPS)
+        list(APPEND LIBCONF_DEPS LibChardet::chardet)
+    else()
+        list(APPEND LIBCONF_DEPS chardet)
+    endif()
 endif()
+
+if(LIBCONF_LINK_DEPS)
+    list(APPEND LIBCONF_DEPS LibNex::nex)
+else()
+    list(APPEND LIBCONF_DEPS nex)
+endif()
+
+# Link with libnex and libchardet
+target_link_libraries(conf PUBLIC ${LIBCONF_DEPS})
 
 # Install it
 if(NOT LIBCONF_BUILDONLY)

@@ -21,15 +21,16 @@
 
 #cmakedefine HAVE_VISIBILITY
 #cmakedefine HAVE_DECLSPEC_EXPORT
+#cmakedefine LIBCONF_NO_CHARDET
 
 // Get visibility stuff right
 #ifdef HAVE_VISIBILITY
 #define LIBCONF_PUBLIC __attribute__ ((visibility ("default")))
 #elif defined HAVE_DECLSPEC_EXPORT
 #ifdef IN_LIBNEX
-#define LIBCONF_PUBLIC __declspec(dllexport)
+#define LIBCONF_PUBLIC __declspec (dllexport)
 #else
-#define LIBCONF_PUBLIC __declspec(dllimport)
+#define LIBCONF_PUBLIC __declspec (dllimport)
 #endif
 #else
 #define LIBCONF_PUBLIC

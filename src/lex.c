@@ -19,7 +19,9 @@
 
 #include "internal.h"
 #include <assert.h>
+#ifndef LIBCONF_NO_CHARDET
 #include <chardet/chardet.h>
+#endif
 #include <errno.h>
 #include <libnex/base.h>
 #include <libnex/error.h>
@@ -206,6 +208,8 @@ lexState_t* confLexInit (LibConf_t* ctx, const char* file)
         ctx->error = LIBCONF_ERROR_OOM;
         return NULL;
     }
+    char enc = 0, order = 0;
+#ifndef LIBCONF_NO_CHARDET
     // Detect character set
     DetectObj* obj = detect_obj_init();
     short res = 0;
@@ -226,8 +230,10 @@ lexState_t* confLexInit (LibConf_t* ctx, const char* file)
             return NULL;
         }
     }
-    char enc = 0, order = 0;
     TextGetEncId (obj->encoding, &enc, &order);
+#else
+    enc = TEXT_ENC_UTF8, order = TEXT_ORDER_NONE;
+#endif
     // Open up the text stream
     res = TextOpen (file, &state->stream, TEXT_MODE_READ, enc, obj->bom, order);
     if (res != TEXT_SUCCESS)
