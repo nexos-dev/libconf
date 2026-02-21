@@ -241,7 +241,7 @@ lexState_t* confLexInit (LibConf_t* ctx, const char* file)
     if (res != TEXT_SUCCESS)
     {
         free (state);
-#ifndef LIBNEX_NO_CHARDET
+#ifndef LIBCONF_NO_CHARDET
         detect_obj_free (&obj);
 #endif
         lexErrorInternal (state, TextError (res));
@@ -250,7 +250,7 @@ lexState_t* confLexInit (LibConf_t* ctx, const char* file)
     // Set up state
     state->line = 1;
     // Free stuff we're done with
-#ifndef LIBNEX_NO_CHARDET
+#ifndef LIBCONF_NO_CHARDET
     detect_obj_free (&obj);
 #endif
     return state;
