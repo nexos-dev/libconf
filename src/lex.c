@@ -42,36 +42,37 @@
 #define LEX_ERROR_INVALID_NUMBER   5
 #define LEX_ERROR_BUFFER_OVERFLOW  6
 #define LEX_ERROR_INVALID_VAR_ID   7
+#define LEX_ERROR_OOM              8
 
 // Helper function macros
-#define CHECK_NEWLINE_BREAK               \
-    if (curChar == '\n')                  \
-    {                                     \
-        ++state->line;                    \
-        tok->type = LEX_TOKEN_NONE;       \
-        break;                            \
-    }                                     \
-    else if (curChar == '\r')             \
-    {                                     \
-        if (_lexPeekChar (state) == '\n') \
-            _lexSkipChar (state);         \
-        ++state->line;                    \
-        tok->type = LEX_TOKEN_NONE;       \
-        break;                            \
+#define CHECK_NEWLINE_BREAK              \
+    if (curChar == '\n')                 \
+    {                                    \
+        ++state->line;                   \
+        tok->type = LEX_TOKEN_NONE;      \
+        break;                           \
+    }                                    \
+    else if (curChar == '\r')            \
+    {                                    \
+        if (lexPeekChar (state) == '\n') \
+            lexSkipChar (state);         \
+        ++state->line;                   \
+        tok->type = LEX_TOKEN_NONE;      \
+        break;                           \
     }
 
-#define CHECK_NEWLINE                     \
-    if (curChar == '\n')                  \
-    {                                     \
-        ++state->line;                    \
-        tok->type = LEX_TOKEN_NONE;       \
-    }                                     \
-    else if (curChar == '\r')             \
-    {                                     \
-        if (_lexPeekChar (state) == '\n') \
-            _lexSkipChar (state);         \
-        ++state->line;                    \
-        tok->type = LEX_TOKEN_NONE;       \
+#define CHECK_NEWLINE                    \
+    if (curChar == '\n')                 \
+    {                                    \
+        ++state->line;                   \
+        tok->type = LEX_TOKEN_NONE;      \
+    }                                    \
+    else if (curChar == '\r')            \
+    {                                    \
+        if (lexPeekChar (state) == '\n') \
+            lexSkipChar (state);         \
+        ++state->line;                   \
+        tok->type = LEX_TOKEN_NONE;      \
     }
 
 #define CHECK_EOF(c)              \
@@ -88,28 +89,31 @@
         break;                    \
     }
 
-#define EXPECT_NO_EOF(c)                                   \
-    if ((c) == '\0')                                       \
-    {                                                      \
-        _lexError (state, LEX_ERROR_UNEXPECTED_EOF, NULL); \
-        goto _internalError;                               \
+#define EXPECT_NO_EOF(c)                                  \
+    if ((c) == '\0')                                      \
+    {                                                     \
+        lexError (state, LEX_ERROR_UNEXPECTED_EOF, NULL); \
+        goto _internalError;                              \
     }
 
 // Prints out an error condition
-static inline void _lexError (lexState_t* state, int err, const char* extra)
+static inline void lexDiagnostic (lexState_t* state, int err, const char* extra)
 {
-
-    char extraBuf[5];
-    char bufData[2048];
-
-    char* obuf = bufData;
-    char* buf = bufData;
-
+    char header[64];
+    char* buf = state->ctx->errBuf;
+    char* obuf = state->ctx->errBuf;
+    FILE* logFile = state->ctx->log;
+    const char* file = state->ctx->fileName;
     if (err != LEX_ERROR_INTERNAL)
-        buf += snprintf (buf, 2048 - (buf - obuf), "error: %s:", ConfGetFileName());
-
-    if (state)
-        buf += snprintf (buf, 2048 - (buf - obuf), "%d: ", state->line);
+    {
+        sprintf (header, "libconf: error: %s:", file);
+        if (state)
+            buf += snprintf (buf, 2048 - (buf - obuf), "%d: ", state->line);
+    }
+    else
+    {
+        sprintf (header, "libconf: internal error: %s:", file);
+    }
     // Decide how to handle the error
     switch (err)
     {
@@ -119,7 +123,7 @@ static inline void _lexError (lexState_t* state, int err, const char* extra)
             buf += snprintf (buf,
                              2048 - (buf - obuf),
                              "%s",
-                             _confLexGetTokenName (state->tok));
+                             confLexGetTokenName (state->tok));
             break;
         case LEX_ERROR_UNKNOWN_TOKEN:
             // Add everything
@@ -134,7 +138,7 @@ static inline void _lexError (lexState_t* state, int err, const char* extra)
             buf += snprintf (buf,
                              2048 - (buf - obuf),
                              " on token %s",
-                             _confLexGetTokenName (state->tok));
+                             confLexGetTokenName (state->tok));
             break;
         case LEX_ERROR_INVALID_NUMBER:
             buf += snprintf (buf, 2048 - (buf - obuf), "Invalid numeric value");
@@ -143,33 +147,65 @@ static inline void _lexError (lexState_t* state, int err, const char* extra)
             buf += snprintf (buf,
                              2048 - (buf - obuf),
                              "Name too long on token %s",
-                             _confLexGetTokenName (state->tok));
+                             confLexGetTokenName (state->tok));
             break;
         case LEX_ERROR_INVALID_VAR_ID:
             buf +=
                 snprintf (buf, 2048 - (buf - obuf), "Invalid character in variable");
             break;
         case LEX_ERROR_INTERNAL:
-            printf ("%s\n", ConfGetFileName());
-            buf += snprintf (buf,
-                             2048 - (buf - obuf),
-                             "internal error: %s: %s",
-                             ConfGetFileName(),
-                             extra);
+            buf += snprintf (buf, 2048 - (buf - obuf), "%s", extra);
+            break;
+        case LEX_ERROR_OOM:
+            buf += snprintf (buf, 2048 - (buf - obuf), "out of memory");
             break;
     }
-    // Silence clang-tidy warnings about buf being unused
-    (void) buf;
-    error (obuf);
+    fprintf (logFile, "%s", header);
+    fprintf (logFile, "%s\n", obuf);
 }
 
-lexState_t* _confLexInit (const char* file)
+// Shorthand for system error
+static inline void lexErrorSys (lexState_t* state)
+{
+    LibConf_t* ctx = state->ctx;
+    ctx->error = LIBCONF_ERROR_SYS;
+    lexDiagnostic (state, LEX_ERROR_INTERNAL, strerror (errno));
+}
+
+// Shorthand for internal error
+static inline void lexErrorInternal (lexState_t* state, const char* str)
+{
+    LibConf_t* ctx = state->ctx;
+    ctx->error = LIBCONF_ERROR_LEX;
+    lexDiagnostic (state, LEX_ERROR_INTERNAL, str);
+}
+
+// Shorthand for OOM
+static inline void lexErrorOom (lexState_t* state)
+{
+    LibConf_t* ctx = state->ctx;
+    ctx->error = LIBCONF_ERROR_OOM;
+    lexDiagnostic (state, LEX_ERROR_OOM, NULL);
+}
+
+// Shorthand for any other error
+static inline void lexError (lexState_t* state, int err, const char* extra)
+{
+    LibConf_t* ctx = state->ctx;
+    ctx->error = LIBCONF_ERROR_LEX;
+    lexDiagnostic (state, err, extra);
+}
+
+lexState_t* confLexInit (LibConf_t* ctx, const char* file)
 {
     assert (file);
     // Create state
-    lexState_t* state = (lexState_t*) calloc_s (sizeof (lexState_t));
+    lexState_t* state = (lexState_t*) calloc (1, sizeof (lexState_t));
     if (!state)
+    {
+        ctx->error = LIBCONF_ERROR_OOM;
         return NULL;
+    }
     // Detect character set
     DetectObj* obj = detect_obj_init();
     short res = 0;
@@ -179,14 +215,14 @@ lexState_t* _confLexInit (const char* file)
         {
             free (state);
             detect_obj_free (&obj);
-            _lexError (NULL, LEX_ERROR_INTERNAL, strerror (errno));
+            lexErrorSys (state);
             return NULL;
         }
         else
         {
             free (state);
             detect_obj_free (&obj);
-            _lexError (NULL, LEX_ERROR_INTERNAL, "unable to detect character set");
+            lexErrorInternal (state, "unable to detected character set");
             return NULL;
         }
     }
@@ -198,7 +234,7 @@ lexState_t* _confLexInit (const char* file)
     {
         free (state);
         detect_obj_free (&obj);
-        _lexError (NULL, LEX_ERROR_INTERNAL, TextError (res));
+        lexErrorInternal (state, TextError (res));
         return NULL;
     }
     // Set up state
@@ -208,7 +244,7 @@ lexState_t* _confLexInit (const char* file)
     return state;
 }
 
-void _confLexDestroy (lexState_t* state)
+void confLexDestroy (lexState_t* state)
 {
     if (state->stream)
         TextClose (state->stream);
@@ -216,7 +252,7 @@ void _confLexDestroy (lexState_t* state)
 }
 
 // Reads a character from the file
-static inline char _lexReadChar (lexState_t* state)
+static inline char lexReadChar (lexState_t* state)
 {
     char c = 0;
     short res = 0;
@@ -243,7 +279,7 @@ static inline char _lexReadChar (lexState_t* state)
 }
 
 // Peek at the next character in the file
-static inline char _lexPeekChar (lexState_t* state)
+static inline char lexPeekChar (lexState_t* state)
 {
     char c = 0;
     short res = 0;
@@ -266,13 +302,13 @@ static inline char _lexPeekChar (lexState_t* state)
 }
 
 // Returns a character to the buffer
-#define _lexReturnChar(state, c) ((state)->nextChar = (c));
+#define lexReturnChar(state, c) ((state)->nextChar = (c));
 
 // Skips over a character that was peeked at
-#define _lexSkipChar(state) ((state)->nextChar = 0)
+#define lexSkipChar(state) ((state)->nextChar = 0)
 
 // Checks if the current character is whitespace
-static inline bool _lexIsSpace (char c)
+static inline bool lexIsSpace (char c)
 {
     switch (c)
     {
@@ -289,7 +325,7 @@ static inline bool _lexIsSpace (char c)
 }
 
 // Checks if the current character is numeric
-static inline bool _lexIsNumeric (char c, uint8_t base)
+static inline bool lexIsNumeric (char c, uint8_t base)
 {
     switch (c)
     {
@@ -323,7 +359,7 @@ static inline bool _lexIsNumeric (char c, uint8_t base)
 }
 
 // Checks if the current character is a valid ID character
-static inline bool _lexIsIdChar (char c)
+static inline bool lexIsIdChar (char c)
 {
     switch (c)
     {
@@ -399,16 +435,19 @@ static inline bool _lexIsIdChar (char c)
 
 // Internal lexer. VERY performance critical, please try to keep additions to a
 // minimum
-_confToken_t* _lexInternal (lexState_t* state)
+confToken_t* lexInternal (lexState_t* state)
 {
     assert (state->stream);
     unsigned long bufPos = 0;
     int numBufPos = 0;
     int res = 0;
     // Allocate token
-    _confToken_t* tok = (_confToken_t*) calloc_s (sizeof (_confToken_t));
+    confToken_t* tok = (confToken_t*) calloc (1, sizeof (confToken_t));
     if (!tok)
+    {
+        lexErrorOom (state);
         goto _internalError;
+    }
     state->tok = tok;
     tok->type = LEX_TOKEN_NONE;
     // If we're at the end of the file, report it
@@ -423,7 +462,7 @@ _confToken_t* _lexInternal (lexState_t* state)
     while (!state->isAccepted)
     {
         // Read in a character
-        char curChar = _lexReadChar (state);
+        char curChar = lexReadChar (state);
         // Decide what to do with this character
         switch (curChar)
         {
@@ -439,8 +478,8 @@ _confToken_t* _lexInternal (lexState_t* state)
             case '\r':
                 // Carriage return. Can be Mac style (CR alone) or DOS style (CR
                 // followed by LF) Look for an LF in case this is DOS style
-                if (_lexPeekChar (state) == '\n')
-                    _lexSkipChar (state);
+                if (lexPeekChar (state) == '\n')
+                    lexSkipChar (state);
             // fall through
             case '\n':
                 // Line feed. Increment current line
@@ -452,35 +491,35 @@ _confToken_t* _lexInternal (lexState_t* state)
                 goto lexComment;
             case '/':
                 // Check for a single line comment
-                if (_lexPeekChar (state) == '/')
+                if (lexPeekChar (state) == '/')
                 {
-                    _lexSkipChar (state);
+                    lexSkipChar (state);
                     tok->type = LEX_TOKEN_SLASH_COMMENT;
                     goto lexComment;
                 }
                 // Maybe a block comment?
-                else if (_lexPeekChar (state) == '*')
+                else if (lexPeekChar (state) == '*')
                 {
-                    _lexSkipChar (state);
+                    lexSkipChar (state);
                     tok->type = LEX_TOKEN_BLOCK_COMMENT;
                 // Lex it
                 lexBlockComment:
-                    curChar = _lexReadChar (state);
+                    curChar = lexReadChar (state);
                     if (curChar == '*')
                     {
                         // Look for a '/'
-                        if (_lexPeekChar (state) == '/')
+                        if (lexPeekChar (state) == '/')
                         {
                             // End of comment
-                            _lexSkipChar (state);
+                            lexSkipChar (state);
                             break;
                         }
                     }
                     else if (curChar == '\r')
                     {
                         // Still increment line
-                        if (_lexPeekChar (state) == '\n')
-                            _lexSkipChar (state);
+                        if (lexPeekChar (state) == '\n')
+                            lexSkipChar (state);
                         ++state->line;
                     }
                     else if (curChar == '\n')
@@ -495,7 +534,7 @@ _confToken_t* _lexInternal (lexState_t* state)
             lexComment:
                 // This is a comment
                 // Iterate through the comment
-                curChar = _lexReadChar (state);
+                curChar = lexReadChar (state);
                 CHECK_EOF (curChar);
                 // Check for a newline
                 CHECK_NEWLINE_BREAK
@@ -592,26 +631,29 @@ _confToken_t* _lexInternal (lexState_t* state)
                 tok->type = LEX_TOKEN_ID;
                 tok->line = state->line;
 #define VARMAX 32
-                char* semVal = malloc_s (VARMAX * sizeof (char));
+                char* semVal = malloc (VARMAX * sizeof (char));
                 if (!semVal)
+                {
+                    lexErrorOom (state);
                     goto _internalError;
+                }
                 // Add the rest of it
-                while (_lexIsIdChar (curChar))
+                while (lexIsIdChar (curChar))
                 {
                     semVal[bufPos] = curChar;
                     ++bufPos;
                     if (bufPos >= VARMAX)
                     {
-                        _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
+                        lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
                         goto _internalError;
                     }
-                    curChar = _lexReadChar (state);
+                    curChar = lexReadChar (state);
                     CHECK_EOF_BREAK (curChar);
                 }
                 // Null terminate it
                 semVal[bufPos] = 0;
                 // Return character to buffer
-                _lexReturnChar (state, curChar);
+                lexReturnChar (state, curChar);
                 // Check if this is a keyword
                 if (!strcmp (semVal, "include"))
                     tok->type = LEX_TOKEN_INCLUDE;
@@ -621,21 +663,21 @@ _confToken_t* _lexInternal (lexState_t* state)
                 break;
             case '0':
                 // Figure out base when a number starts with 0
-                if (_lexPeekChar (state) == 'x')
+                if (lexPeekChar (state) == 'x')
                 {
                     // Skip and set base
-                    _lexSkipChar (state);
+                    lexSkipChar (state);
                     tok->base = 16;
                 }
-                else if (_lexPeekChar (state) == 'b')
+                else if (lexPeekChar (state) == 'b')
                 {
                     // Same thing
-                    _lexSkipChar (state);
+                    lexSkipChar (state);
                     tok->base = 2;
                 }
                 else
                     tok->base = 8;
-                curChar = _lexReadChar (state);
+                curChar = lexReadChar (state);
                 CHECK_EOF (curChar);
                 goto lexNum;
             case '1':
@@ -653,38 +695,41 @@ _confToken_t* _lexInternal (lexState_t* state)
                 // Prepare the token
                 tok->type = LEX_TOKEN_NUM;
                 tok->line = state->line;
-                semVal = malloc_s (VARMAX * sizeof (char));
+                semVal = malloc (VARMAX * sizeof (char));
                 if (!semVal)
+                {
+                    lexErrorOom (state);
                     goto _internalError;
+                }
                 // Add rest of value
-                while (_lexIsNumeric (curChar, tok->base) ||
+                while (lexIsNumeric (curChar, tok->base) ||
                        (bufPos == 0 && curChar == '-'))
                 {
                     if (bufPos >= VARMAX)
                     {
-                        _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
+                        lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
                         goto _internalError;
                     }
                     semVal[bufPos] = curChar;
                     ++bufPos;
-                    curChar = _lexReadChar (state);
+                    curChar = lexReadChar (state);
                     CHECK_EOF (curChar);
                 }
                 // Ensure the user didn't just pass '-'
                 if (bufPos <= 1 && semVal[0] == '-')
                 {
-                    _lexError (state, LEX_ERROR_INVALID_NUMBER, NULL);
+                    lexError (state, LEX_ERROR_INVALID_NUMBER, NULL);
                     goto _internalError;
                 }
                 // Null terminate
                 semVal[bufPos] = 0;
                 // Return first non-numeric character
-                _lexReturnChar (state, curChar);
+                lexReturnChar (state, curChar);
                 // Convert the string to numeric
                 tok->num = strtoll (semVal, NULL, tok->base);
                 if (tok->num == LONG_MIN || tok->num == LONG_MAX)
                 {
-                    _lexError (state, LEX_ERROR_INTERNAL, strerror (errno));
+                    lexErrorSys (state);
                     goto _internalError;
                 }
                 // Accept it
@@ -695,64 +740,64 @@ _confToken_t* _lexInternal (lexState_t* state)
                 // A literal string. Simply lex into semVal
                 tok->type = LEX_TOKEN_STR;
                 tok->line = state->line;
-                curChar = _lexReadChar (state);
+                curChar = lexReadChar (state);
 #define STRINGMAX 128
-                semVal = malloc_s (STRINGMAX);
+                semVal = malloc (STRINGMAX);
                 while (curChar != '\'')
                 {
                     // Handle escape sequences
                     if (curChar == '\\')
                     {
                         // Look at next character
-                        if (_lexPeekChar (state) == '\\')
+                        if (lexPeekChar (state) == '\\')
                         {
                             // Write out a single backslash
-                            _lexSkipChar (state);
+                            lexSkipChar (state);
                             curChar = '\\';
                         }
                         // Escape whitespace
-                        else if (_lexIsSpace (_lexPeekChar (state)))
+                        else if (lexIsSpace (lexPeekChar (state)))
                         {
-                            if (_lexPeekChar (state) == '\n' ||
-                                _lexPeekChar (state) == '\r')
+                            if (lexPeekChar (state) == '\n' ||
+                                lexPeekChar (state) == '\r')
                             {
                                 ++state->line;
-                                char oc = _lexPeekChar (state);
-                                _lexSkipChar (state);
+                                char oc = lexPeekChar (state);
+                                lexSkipChar (state);
                                 // Skip over LF in case of CR
-                                if (_lexPeekChar (state) == '\n' && oc == '\r')
-                                    _lexSkipChar (state);
-                                curChar = _lexReadChar (state);
+                                if (lexPeekChar (state) == '\n' && oc == '\r')
+                                    lexSkipChar (state);
+                                curChar = lexReadChar (state);
                                 EXPECT_NO_EOF (curChar);
                             }
                             else
                             {
-                                _lexSkipChar (state);
-                                curChar = _lexReadChar (state);
+                                lexSkipChar (state);
+                                curChar = lexReadChar (state);
                                 EXPECT_NO_EOF (curChar);
                             }
                             // Continue skipping over whitespace
-                            while (_lexIsSpace (curChar))
+                            while (lexIsSpace (curChar))
                             {
-                                curChar = _lexReadChar (state);
+                                curChar = lexReadChar (state);
                                 EXPECT_NO_EOF (curChar);
                             }
                         }
                         // Escape apostrophes
-                        else if (_lexPeekChar (state) == '\'')
+                        else if (lexPeekChar (state) == '\'')
                         {
-                            _lexSkipChar (state);
+                            lexSkipChar (state);
                             curChar = '\'';
                         }
                     }
                     if (bufPos >= STRINGMAX)
                     {
-                        _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
+                        lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
                         goto _internalError;
                     }
                     semVal[bufPos] = curChar;
                     ++bufPos;
-                    curChar = _lexReadChar (state);
+                    curChar = lexReadChar (state);
                     EXPECT_NO_EOF (curChar);
                 }
                 semVal[bufPos] = 0;
@@ -764,66 +809,66 @@ _confToken_t* _lexInternal (lexState_t* state)
                 // This is the hardest contsruct to lex
                 tok->type = LEX_TOKEN_STR;
                 tok->line = state->line;
-                semVal = malloc_s (STRINGMAX);
-                curChar = _lexReadChar (state);
+                semVal = malloc (STRINGMAX);
+                curChar = lexReadChar (state);
                 while (curChar != '"')
                 {
                     // Handle escape sequences
                     if (curChar == '\\')
                     {
                         // Look at next character
-                        if (_lexPeekChar (state) == '\\')
+                        if (lexPeekChar (state) == '\\')
                         {
                             // Write out a single backslash
-                            _lexSkipChar (state);
+                            lexSkipChar (state);
                             curChar = '\\';
                         }
                         // Escape whitespace
-                        else if (_lexIsSpace (_lexPeekChar (state)))
+                        else if (lexIsSpace (lexPeekChar (state)))
                         {
-                            if (_lexPeekChar (state) == '\n' ||
-                                _lexPeekChar (state) == '\r')
+                            if (lexPeekChar (state) == '\n' ||
+                                lexPeekChar (state) == '\r')
                             {
                                 ++state->line;
-                                char oc = _lexPeekChar (state);
-                                _lexSkipChar (state);
+                                char oc = lexPeekChar (state);
+                                lexSkipChar (state);
                                 // Skip over LF in case of CR
-                                if (_lexPeekChar (state) == '\n' && oc == '\r')
-                                    _lexSkipChar (state);
-                                curChar = _lexReadChar (state);
+                                if (lexPeekChar (state) == '\n' && oc == '\r')
+                                    lexSkipChar (state);
+                                curChar = lexReadChar (state);
                                 EXPECT_NO_EOF (curChar);
                             }
                             else
                             {
-                                _lexSkipChar (state);
-                                curChar = _lexReadChar (state);
+                                lexSkipChar (state);
+                                curChar = lexReadChar (state);
                                 EXPECT_NO_EOF (curChar);
                             }
                             // Continue skipping over whitespace
-                            while (_lexIsSpace (curChar))
+                            while (lexIsSpace (curChar))
                             {
-                                curChar = _lexReadChar (state);
+                                curChar = lexReadChar (state);
                                 EXPECT_NO_EOF (curChar);
                             }
                             continue;
                         }
                         // Escape quotation marks
-                        else if (_lexPeekChar (state) == '"')
+                        else if (lexPeekChar (state) == '"')
                         {
                             // Write it out
-                            _lexSkipChar (state);
+                            lexSkipChar (state);
                             curChar = '"';
                         }
                         // Escape dollar signs
-                        else if (_lexPeekChar (state) == '$')
+                        else if (lexPeekChar (state) == '$')
                         {
-                            _lexSkipChar (state);
+                            lexSkipChar (state);
                             curChar = '$';
                         }
                         // Escape newlines
-                        else if (_lexPeekChar (state) == 'n')
+                        else if (lexPeekChar (state) == 'n')
                         {
-                            _lexSkipChar (state);
+                            lexSkipChar (state);
                             curChar = '\n';
                         }
                     }
@@ -833,13 +878,13 @@ _confToken_t* _lexInternal (lexState_t* state)
                         // Get variable name
                         char varName[VARMAX] = {0};
                         unsigned long varBufPos = 0;
-                        curChar = _lexReadChar (state);
+                        curChar = lexReadChar (state);
                         while (curChar != '$')
                         {
                             // Check validity
-                            if (!_lexIsIdChar (curChar))
+                            if (!lexIsIdChar (curChar))
                             {
-                                _lexReturnChar (state, curChar);
+                                lexReturnChar (state, curChar);
                                 break;
                             }
                             // Add to buffer
@@ -847,11 +892,11 @@ _confToken_t* _lexInternal (lexState_t* state)
                             ++varBufPos;
                             if (varBufPos >= VARMAX)
                             {
-                                _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
+                                lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
                                 goto _internalError;
                             }
                             // Get next char
-                            curChar = _lexReadChar (state);
+                            curChar = lexReadChar (state);
                         }
                         // Get variable contents
                         char* var = getenv (varName);
@@ -860,14 +905,14 @@ _confToken_t* _lexInternal (lexState_t* state)
                             size_t varLen = strlen (var);
                             if (varLen > STRINGMAX)
                             {
-                                _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
+                                lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
                                 goto _internalError;
                             }
                             // Concatenate variable
                             if (strlcpy (semVal + bufPos, var, STRINGMAX) >=
                                 (STRINGMAX))
                             {
-                                _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
+                                lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
                                 goto _internalError;
                             }
                             bufPos += varLen;
@@ -876,13 +921,13 @@ _confToken_t* _lexInternal (lexState_t* state)
                     }
                     if (bufPos >= STRINGMAX)
                     {
-                        _lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
+                        lexError (state, LEX_ERROR_BUFFER_OVERFLOW, NULL);
                         goto _internalError;
                     }
                     semVal[bufPos] = curChar;
                     ++bufPos;
                 strEnd:
-                    curChar = _lexReadChar (state);
+                    curChar = lexReadChar (state);
                     EXPECT_NO_EOF (curChar);
                 }
                 semVal[bufPos] = 0;
@@ -892,7 +937,7 @@ _confToken_t* _lexInternal (lexState_t* state)
             unkownToken:
             default:
                 // An error here
-                _lexError (state, LEX_ERROR_UNKNOWN_TOKEN, NULL);
+                lexError (state, LEX_ERROR_UNKNOWN_TOKEN, NULL);
                 goto _internalError;
         }
     }
@@ -903,12 +948,12 @@ _internalError:
     return state->tok;
 }
 
-const char* _confLexGetTokenName (_confToken_t* tok)
+const char* confLexGetTokenName (confToken_t* tok)
 {
-    return _confLexGetTokenNameType (tok->type);
+    return confLexGetTokenNameType (tok->type);
 }
 
-const char* _confLexGetTokenNameType (int type)
+const char* confLexGetTokenNameType (int type)
 {
     switch (type)
     {
@@ -942,8 +987,8 @@ const char* _confLexGetTokenNameType (int type)
 }
 
 // Lexer entry points
-_confToken_t* _confLex (lexState_t* state)
+confToken_t* confLex (lexState_t* state)
 {
     // Just lex and return
-    return _lexInternal (state);
+    return lexInternal (state);
 }

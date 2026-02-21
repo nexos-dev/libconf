@@ -28,70 +28,75 @@
 #include <nextest.h>
 #include <stdlib.h>
 
-void _confSetFileName (const char* file);
+void confLexSetFileName (const char* file);
 
 int main()
 {
     // Set up locale stuff
     setlocale (LC_ALL, "");
     setprogname ("lex");
-    _confSetFileName ("testLex.testxt");
-    lexState_t* state = _confLexInit ("testLex.testxt");
-    _confToken_t* tok = NULL;
-    tok = _confLex (state);
+    LibConf_t* ctx = (LibConf_t*) calloc (1, sizeof (LibConf_t));
+    if (!ctx)
+        return 1;
+    ctx->log = stderr;
+    ctx->fileName = "testLex.testxt";
+    lexState_t* state = confLexInit (ctx, "testLex.testxt");
+    confToken_t* tok = NULL;
+    tok = confLex (state);
     TEST_ANON (tok->type, 4);
     TEST_ANON (tok->line, 10);
     free (tok);
-    tok = _confLex (state);
+    tok = confLex (state);
     TEST_ANON (tok->type, 5);
     free (tok);
-    tok = _confLex (state);
+    tok = confLex (state);
     TEST_ANON (tok->type, 7);
     free (tok);
-    tok = _confLex (state);
+    tok = confLex (state);
     TEST_ANON (tok->type, 6);
     free (tok);
-    tok = _confLex (state);
+    tok = confLex (state);
     TEST_ANON (tok->type, 14);
     free (tok);
-    tok = _confLex (state);
+    tok = confLex (state);
     TEST_ANON (tok->type, 9);
     TEST_ANON (tok->num, 25);
     TEST_ANON (tok->line, 12);
     free (tok);
-    tok = _confLex (state);
+    tok = confLex (state);
     TEST_ANON (tok->type, 9);
     TEST_ANON (tok->num, 0xAD8B2);
     TEST_ANON (tok->line, 14);
     free (tok);
-    tok = _confLex (state);
+    tok = confLex (state);
     TEST_ANON (tok->type, 9);
     TEST_ANON (tok->num, -34);
     TEST_ANON (tok->line, 16);
     free (tok);
-    tok = _confLex (state);
+    tok = confLex (state);
     TEST_ANON (tok->type, 8);
     TEST_ANON (tok->line, 18);
     TEST_BOOL_ANON (!strcmp (StrRefGet (tok->semVal), "test2-test3_"));
     StrRefDestroy (tok->semVal);
     free (tok);
-    tok = _confLex (state);
+    tok = confLex (state);
     TEST_ANON (tok->type, 11);
     TEST_ANON (tok->line, 20);
     TEST_BOOL_ANON (!strcmp (StrRefGet (tok->semVal), "test t \\ '"));
     StrRefDestroy (tok->semVal);
     free (tok);
-    tok = _confLex (state);
+    tok = confLex (state);
     TEST_ANON (tok->type, 11);
     TEST_ANON (tok->line, 22);
     TEST_BOOL_ANON (
         !strcmp (StrRefGet (tok->semVal), "test string en_US.UTF-8 $ \" \ntest"));
     StrRefDestroy (tok->semVal);
     free (tok);
-    tok = _confLex (state);
+    tok = confLex (state);
     TEST_ANON (tok->type, 12);
     StrRefDestroy (tok->semVal);
     free (tok);
-    _confLexDestroy (state);
+    confLexDestroy (state);
+    free (ctx);
     return 0;
 }

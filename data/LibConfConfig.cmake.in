@@ -30,6 +30,12 @@ set(LIBCONF_LIBRARY "@LIBCONF_LIBRARY_FILE@")
 # Create the imported target
 add_library(LibConf::conf @LIBCONF_LIBTYPE@ IMPORTED)
 set_target_properties(LibConf::conf PROPERTIES IMPORTED_LOCATION "@LIBCONF_LIBRARY_FILE@")
+if(NOT TARGET LibChardet::chardet)
+    find_package(LibChardet REQUIRED)
+endif()
+if(NOT TARGET LibNex::nex)
+    find_package(LibNex REQUIRED)
+endif()
 target_link_libraries(LibConf::conf INTERFACE LibNex::nex LibChardet::chardet)
 
 # Set SOName

@@ -21,9 +21,9 @@
 #define CONF_H
 
 #include <libconf/libconf_config.h>
-#include <libnex/char32.h>
 #include <libnex/list.h>
 #include <libnex/stringref.h>
+#include <stdio.h>
 
 #define MAX_PROPVAR 16    // The maximum amount of values in a property
 
@@ -72,22 +72,82 @@ typedef struct tagBlock
 } ConfBlock_t;
 
 /**
- * @brief Gets the name of the file being worked on
- * @return The file name
+ * @brief Libconf main data structure
  */
-LIBCONF_PUBLIC const char* ConfGetFileName (void);
+typedef struct lconf
+{
+    ListHead_t* blocks;      // Blocks in the configuration file
+    FILE* log;               // Log file
+    const char* fileName;    // Name of file
+    int error;               // Code of error
+    char errBuf[256];        // Error message buffer
+} LibConf_t;
+
+#define LIBCONF_ERROR_OOM   1
+#define LIBCONF_ERROR_LEX   2
+#define LIBCONF_ERROR_PARSE 3
+#define LIBCONF_ERROR_SYS   4
+
+// Iterator structure
+typedef struct _blkiter
+{
+    ListEntry_t* cur;    // Current place
+} ConfIter_t;
 
 /**
  * @brief Initializes configuration context
  * Takes a file name and parses the file, and returns the parse list
  * @param file the file to read configuration from
+ * @param log log file to print errors to. NULL for stderr
  * @return The list of blocks
  */
-LIBCONF_PUBLIC ListHead_t* ConfInit (const char* file);
+LIBCONF_PUBLIC LibConf_t* ConfInit (const char* file, FILE* log);
 
 /**
  * @brief Frees all memory associated with parse tree
+ * @param ctx context of libconf
  */
-LIBCONF_PUBLIC void ConfFreeParseTree (ListHead_t* list);
+LIBCONF_PUBLIC void ConfFreeParseTree (LibConf_t* ctx);
+
+/**
+ * @brief Iterates through every block in tree
+ * @param ctx context of libconf
+ * @param iter iterator
+ * @return next block, null if end reached
+ */
+LIBCONF_PUBLIC ConfBlock_t* ConfNextBlock (LibConf_t* ctx, ConfIter_t* iter);
+
+/**
+ * @brief Iterate through every property in a block
+ * @param ctx context of libconf
+ * @param block block to iterate through
+ * @param iter iterator
+ * @return next property, null if end reached
+ */
+LIBCONF_PUBLIC ConfProperty_t* ConfNextProp (LibConf_t* ctx,
+                                             ConfBlock_t* block,
+                                             ConfIter_t* iter);
+
+/**
+ * @brief Finds a particlar block by name and type
+ * @param ctx context of libconf
+ * @param type block type
+ * @param name block name
+ * @return Found block, null if non-existant
+ */
+LIBCONF_PUBLIC ConfBlock_t* ConfFindBlock (LibConf_t* ctx,
+                                           const char* type,
+                                           const char* name);
+
+/**
+ * @brief Finds a particular property in a block
+ * @param ctx context of libconf
+ * @param block block to look in
+ * @param prop name of property
+ * @return found property, null in non-existant
+ */
+LIBCONF_PUBLIC ConfProperty_t* ConfFindProp (LibConf_t* ctx,
+                                             ConfBlock_t* block,
+                                             const char* prop);
 
 #endif

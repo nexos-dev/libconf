@@ -31,7 +31,10 @@ int main()
     // Set up locale stuff
     setlocale (LC_ALL, "");
     setprogname ("parse");
-    ListHead_t* list = ConfInit ("testParse.testxt");
+    LibConf_t* ctx = ConfInit ("testParse.testxt", NULL);
+    if (!ctx || ctx->error)
+        return 1;
+    ListHead_t* list = ctx->blocks;
     ListEntry_t* entry = NULL;
     ConfBlock_t* block = NULL;
     entry = ListFront (list);
@@ -138,6 +141,6 @@ int main()
     prop = ListEntryData (entry);
     TEST_BOOL_ANON (!strcmp (StrRefGet (prop->name), "prop"));
     TEST_ANON (prop->vals[0].numVal, 0x20);
-    ConfFreeParseTree (list);
+    ConfFreeParseTree (ctx);
     return 0;
 }

@@ -37,16 +37,17 @@ typedef struct _confToken
     StringRef_t* semVal;    ///< Semantic value of token
     int64_t num;            ///< Numeric value of token
     uint16_t base;          ///< Base of token
-} _confToken_t;
+} confToken_t;
 
 /// The state of the lexer
 typedef struct _lexState
 {
+    LibConf_t* ctx;          ///< Libconf context
     TextStream_t* stream;    ///< Text stream object
     // Base state of lexer
-    bool isEof;           ///< Is the lexer at the end of the file?
-    bool isAccepted;      ///< Is the current token accepted?
-    _confToken_t* tok;    ///< Current token
+    bool isEof;          ///< Is the lexer at the end of the file?
+    bool isAccepted;     ///< Is the current token accepted?
+    confToken_t* tok;    ///< Current token
     // Diagnostic data
     int line;        ///< Line number in lexer
     char curChar;    ///< Current character
@@ -66,41 +67,41 @@ typedef struct _lexState
  * @param[in] file the file to parse
  * @return The list of blocks in the file
  */
-ListHead_t* _confParse (const char* file);
+ListHead_t* confParse (LibConf_t* ctx, const char* file);
 
 /**
  * @brief Initializes the lexer
  * @param file the file to lex
  * @return The lexer's state
  */
-lexState_t* _confLexInit (const char* file);
+lexState_t* confLexInit (LibConf_t* ctx, const char* file);
 
 /**
  * @brief Destroys the lexer
  * @param state the lexer to destroy
  */
-void _confLexDestroy (lexState_t* state);
+void confLexDestroy (lexState_t* state);
 
 /**
  * @brief Lexes a token
  * @param state the lexer to lex
  * @return The token. NULL if an error ocurred
  */
-_confToken_t* _confLex (lexState_t* state);
+confToken_t* confLex (lexState_t* state);
 
 /**
  * @brief Gets the symbolic name of tok
  * @param tok the token to get the name of
  * @return the name of the token
  */
-const char* _confLexGetTokenName (_confToken_t* tok);
+const char* confLexGetTokenName (confToken_t* tok);
 
 /**
  * @brief Gets the name associated with type
  * @param type the type to get the name of
  * @return the name of the type
  */
-const char* _confLexGetTokenNameType (int type);
+const char* confLexGetTokenNameType (int type);
 
 // Valid token numbers
 #define LEX_TOKEN_NONE          0    ///< No token found
