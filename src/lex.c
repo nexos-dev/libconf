@@ -209,10 +209,11 @@ lexState_t* confLexInit (LibConf_t* ctx, const char* file)
         return NULL;
     }
     char enc = 0, order = 0;
+    bool hasBom = false;
+    short res = 0;
 #ifndef LIBCONF_NO_CHARDET
     // Detect character set
     DetectObj* obj = detect_obj_init();
-    short res = 0;
     if ((res = detect_file (file, 8192, &obj)) != CHARDET_SUCCESS)
     {
         if (res == CHARDET_IO_ERROR)
@@ -231,22 +232,27 @@ lexState_t* confLexInit (LibConf_t* ctx, const char* file)
         }
     }
     TextGetEncId (obj->encoding, &enc, &order);
+    hasBom = obj->bom;
 #else
     enc = TEXT_ENC_UTF8, order = TEXT_ORDER_NONE;
 #endif
     // Open up the text stream
-    res = TextOpen (file, &state->stream, TEXT_MODE_READ, enc, obj->bom, order);
+    res = TextOpen (file, &state->stream, TEXT_MODE_READ, enc, hasBom, order);
     if (res != TEXT_SUCCESS)
     {
         free (state);
+#ifndef LIBNEX_NO_CHARDET
         detect_obj_free (&obj);
+#endif
         lexErrorInternal (state, TextError (res));
         return NULL;
     }
     // Set up state
     state->line = 1;
     // Free stuff we're done with
+#ifndef LIBNEX_NO_CHARDET
     detect_obj_free (&obj);
+#endif
     return state;
 }
 
