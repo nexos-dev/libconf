@@ -219,16 +219,16 @@ lexState_t* confLexInit (LibConf_t* ctx, const char* file)
     {
         if (res == CHARDET_IO_ERROR)
         {
-            free (state);
             detect_obj_free (&obj);
             lexErrorSys (state);
+            free (state);
             return NULL;
         }
         else
         {
-            free (state);
             detect_obj_free (&obj);
             lexErrorInternal (state, "unable to detected character set");
+            free (state);
             return NULL;
         }
     }
