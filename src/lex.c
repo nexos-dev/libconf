@@ -208,6 +208,7 @@ lexState_t* confLexInit (LibConf_t* ctx, const char* file)
         ctx->error = LIBCONF_ERROR_OOM;
         return NULL;
     }
+    state->ctx = ctx;
     char enc = 0, order = 0;
     bool hasBom = false;
     short res = 0;
